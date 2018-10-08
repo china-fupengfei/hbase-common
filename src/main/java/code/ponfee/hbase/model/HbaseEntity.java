@@ -11,7 +11,7 @@ import code.ponfee.hbase.annotation.HbaseField;
 /**
  * Base Entity Class for hbase
  * 
- * @author 01367825
+ * @author Ponfee
  */
 public abstract class HbaseEntity
     implements Serializable, Comparable<HbaseEntity> {

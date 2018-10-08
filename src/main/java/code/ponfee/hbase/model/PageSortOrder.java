@@ -3,7 +3,7 @@ package code.ponfee.hbase.model;
 /**
  * Page query Order by
  * 
- * @author 01367825
+ * @author Ponfee
  */
 public enum PageSortOrder {
 

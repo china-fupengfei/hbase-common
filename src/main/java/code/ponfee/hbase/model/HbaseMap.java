@@ -5,7 +5,7 @@ import java.util.HashMap;
 /**
  * Class HbaseMap mapping for hbase table
  * 
- * @author 01367825
+ * @author Ponfee
  */
 public abstract class HbaseMap<V> extends HashMap<String, V> {
 

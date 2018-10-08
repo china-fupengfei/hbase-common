@@ -87,7 +87,7 @@ import code.ponfee.hbase.model.PageSortOrder;
 /**
  * The Hbase dao common base class
  * 
- * @author 01367825
+ * @author Ponfee
  */
 public abstract class HbaseDao<T> {
 
@@ -817,21 +817,20 @@ public abstract class HbaseDao<T> {
      * 
      * @param family     spec family name in methods
      * @param hf         the filed annotation's family name
-     * @param globalFamily the class annotation's family name
      * @param field    the field name
      * @return a family name of hbase
      */
     private byte[] getFamily(byte[] family, HbaseField hf, Field field) {
-        if (ArrayUtils.isNotEmpty(family)) {
+        if (ArrayUtils.isNotEmpty(family)) { // first spec level family
             return family;
         }
-        if (hf != null && isNotEmpty(hf.family())) {
+        if (hf != null && isNotEmpty(hf.family())) { // second field level family
             return toBytes(hf.family());
         }
-        if (!definedFamilies.isEmpty()) {
+        if (!definedFamilies.isEmpty()) { // third global level family
             return definedFamilies.get(0);
         }
-        if (field != null) {
+        if (field != null) { // least filed name level family
             return toBytes(LOWER_CAMEL.to(LOWER_UNDERSCORE, field.getName()));
         }
         return null;

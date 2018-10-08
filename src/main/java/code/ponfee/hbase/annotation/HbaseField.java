@@ -5,7 +5,7 @@ import java.lang.annotation.*;
 /**
  * Entity field mapping to hbase column
  * 
- * @author 01367825
+ * @author Ponfee
  */
 @Documented
 @Inherited

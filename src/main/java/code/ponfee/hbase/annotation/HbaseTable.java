@@ -5,7 +5,7 @@ import java.lang.annotation.*;
 /**
  * Mapping the hbase table name
  * 
- * @author 01367825
+ * @author Ponfee
  */
 @Documented
 @Target(ElementType.TYPE)

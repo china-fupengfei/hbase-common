@@ -13,7 +13,7 @@ import code.ponfee.commons.util.ObjectUtils;
 /**
  * Page query for hbase
  * 
- * @author 01367825
+ * @author Ponfee
  */
 public class PageQueryBuilder {
 
