@@ -11,6 +11,7 @@ import javax.annotation.Resource;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.time.FastDateFormat;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.test.context.ContextConfiguration;
@@ -32,6 +33,7 @@ public class HbaeDaoEntityTest {
     private @Resource ExtendsHbaseEntityDao hbaseDao;
 
     @Test
+    @Ignore
     public void dropTable() {
         System.out.println(hbaseDao.dropTable());
     }

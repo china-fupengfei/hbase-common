@@ -9,6 +9,7 @@ import java.util.Set;
 import javax.annotation.Resource;
 
 import org.apache.commons.collections4.CollectionUtils;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.test.context.ContextConfiguration;
@@ -27,6 +28,17 @@ public class BasOrderInfoTest {
     
     private static final int PAGE_SIZE = 20;
     private @Resource BasOrderInfoDao hbaseDao;
+
+    @Test
+    @Ignore
+    public void dropTable() {
+        System.out.println(hbaseDao.dropTable());
+    }
+    
+    @Test
+    public void createTable() {
+        System.out.println(hbaseDao.createTable());
+    }
 
     @Test
     public void descTable() {

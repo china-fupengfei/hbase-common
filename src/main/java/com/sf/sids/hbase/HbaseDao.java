@@ -567,6 +567,9 @@ public abstract class HbaseDao<T> {
                 } else if (obj instanceof HbaseMap) {
                     HbaseMap<V> map = (HbaseMap<V>) obj;
                     byte[] family = getFamily(fam, null, null);
+                    if (family == null) {
+                        throw new IllegalArgumentException("Family cannot be null.");
+                    }
                     Put put = new Put(toBytes(map.get(ROW_KEY_NAME)));
                     map.entrySet().stream().filter(
                         e -> isNotEmpty(e.getKey()) && !ROW_KEY_NAME.equals(e.getKey())

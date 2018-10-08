@@ -12,6 +12,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Resource;
 
 import org.apache.commons.collections4.CollectionUtils;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.test.context.ContextConfiguration;
@@ -29,6 +30,17 @@ import com.sf.sids.hbase.other.ExtendsHbaseMapDao;
 public class HbaeDaoMapTest {
     private static final int PAGE_SIZE = 20;
     private @Resource ExtendsHbaseMapDao hbaseDao;
+
+    @Test
+    @Ignore
+    public void dropTable() {
+        System.out.println(hbaseDao.dropTable());
+    }
+    
+    @Test
+    public void createTable() {
+        System.out.println(hbaseDao.createTable());
+    }
 
     @Test
     public void descTable() {
