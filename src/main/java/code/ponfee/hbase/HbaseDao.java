@@ -11,7 +11,6 @@ import static org.apache.commons.lang3.StringUtils.substringBefore;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.text.ParseException;
 import java.util.ArrayList;
@@ -31,7 +30,6 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ArrayUtils;
-import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.apache.commons.lang3.time.FastDateFormat;
 import org.apache.hadoop.conf.Configuration;
@@ -856,7 +854,7 @@ public abstract class HbaseDao<T> {
 
         HbaseField hf = field.getDeclaredAnnotation(HbaseField.class);
         if (hf != null && hf.serial()) {
-            Fields.put(target, field, SerializationUtils.deserialize(value));
+            Fields.put(target, field, ObjectUtils.deserialize(value, field.getType()));
         } else if (   hf != null && ArrayUtils.isNotEmpty(hf.format()) 
                    && Date.class.isAssignableFrom(field.getType())
         ) {
@@ -937,12 +935,7 @@ public abstract class HbaseDao<T> {
             return null;
         }
         if (hf != null && hf.serial()) {
-            if (!(value instanceof Serializable)) {
-                throw new UnsupportedOperationException(
-                    ClassUtils.getClassName(value.getClass()) + " must be Serializable."
-                );
-            }
-            return SerializationUtils.serialize((Serializable) value);
+            return ObjectUtils.serialize(value, field.getType());
         }
         if (hf == null || ArrayUtils.isEmpty(hf.format())) {
             return toBytes(value.toString());
