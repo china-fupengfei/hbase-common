@@ -935,7 +935,7 @@ public abstract class HbaseDao<T> {
             return null;
         }
         if (hf != null && hf.serial()) {
-            return ObjectUtils.serialize(value, field.getType());
+            return ObjectUtils.serialize(value);
         }
         if (hf == null || ArrayUtils.isEmpty(hf.format())) {
             return toBytes(value.toString());
