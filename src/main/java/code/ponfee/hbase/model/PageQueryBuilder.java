@@ -1,4 +1,4 @@
-package com.sf.sids.hbase.bean;
+package code.ponfee.hbase.model;
 
 import java.util.List;
 import java.util.Map;

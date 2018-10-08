@@ -1,13 +1,13 @@
-package com.sf.sids.hbase.other;
+package code.ponfee.hbase.other;
 
 import java.util.Date;
 
 import com.alibaba.fastjson.annotation.JSONField;
-import com.sf.sids.hbase.annotation.HbaseField;
-import com.sf.sids.hbase.annotation.HbaseTable;
-import com.sf.sids.hbase.bean.HbaseEntity;
 
 import code.ponfee.commons.util.Dates;
+import code.ponfee.hbase.annotation.HbaseField;
+import code.ponfee.hbase.annotation.HbaseTable;
+import code.ponfee.hbase.model.HbaseEntity;
 
 @HbaseTable(namespace = "ponfee", tableName = "t_test_entity", family = "cf1")
 public class ExtendsHbaseEntity extends HbaseEntity {

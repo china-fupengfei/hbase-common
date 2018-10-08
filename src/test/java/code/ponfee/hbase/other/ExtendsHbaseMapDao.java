@@ -1,8 +1,8 @@
-package com.sf.sids.hbase.other;
+package code.ponfee.hbase.other;
 
 import org.springframework.stereotype.Repository;
 
-import com.sf.sids.hbase.HbaseDao;
+import code.ponfee.hbase.HbaseDao;
 
 @Repository("extendsHbaseMapDao")
 public class ExtendsHbaseMapDao extends HbaseDao<ExtendsHbaseMap<Object>> {

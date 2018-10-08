@@ -1,4 +1,4 @@
-package com.sf.sids.hbase.bean;
+package code.ponfee.hbase.model;
 
 /**
  * Page query Order by

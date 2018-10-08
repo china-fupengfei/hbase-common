@@ -1,9 +1,9 @@
-package com.sf.sids.hbase;
+package code.ponfee.hbase;
 
+import static code.ponfee.hbase.model.HbaseMap.ROW_KEY_NAME;
+import static code.ponfee.hbase.model.HbaseMap.ROW_NUM_NAME;
 import static com.google.common.base.CaseFormat.LOWER_CAMEL;
 import static com.google.common.base.CaseFormat.LOWER_UNDERSCORE;
-import static com.sf.sids.hbase.bean.HbaseMap.ROW_KEY_NAME;
-import static com.sf.sids.hbase.bean.HbaseMap.ROW_NUM_NAME;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.commons.lang3.StringUtils.isNotEmpty;
@@ -68,12 +68,6 @@ import org.springframework.data.hadoop.hbase.RowMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.ImmutableList;
-import com.sf.sids.hbase.annotation.HbaseField;
-import com.sf.sids.hbase.annotation.HbaseTable;
-import com.sf.sids.hbase.bean.HbaseEntity;
-import com.sf.sids.hbase.bean.HbaseMap;
-import com.sf.sids.hbase.bean.PageQueryBuilder;
-import com.sf.sids.hbase.bean.PageSortOrder;
 
 import code.ponfee.commons.cache.DateProvider;
 import code.ponfee.commons.math.Numbers;
@@ -83,6 +77,12 @@ import code.ponfee.commons.reflect.GenericUtils;
 import code.ponfee.commons.util.Holder;
 import code.ponfee.commons.util.ObjectUtils;
 import code.ponfee.commons.util.Strings;
+import code.ponfee.hbase.annotation.HbaseField;
+import code.ponfee.hbase.annotation.HbaseTable;
+import code.ponfee.hbase.model.HbaseEntity;
+import code.ponfee.hbase.model.HbaseMap;
+import code.ponfee.hbase.model.PageQueryBuilder;
+import code.ponfee.hbase.model.PageSortOrder;
 
 /**
  * The Hbase dao common base class

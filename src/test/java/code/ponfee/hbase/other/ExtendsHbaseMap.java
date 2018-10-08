@@ -1,7 +1,7 @@
-package com.sf.sids.hbase.other;
+package code.ponfee.hbase.other;
 
-import com.sf.sids.hbase.annotation.HbaseTable;
-import com.sf.sids.hbase.bean.HbaseMap;
+import code.ponfee.hbase.annotation.HbaseTable;
+import code.ponfee.hbase.model.HbaseMap;
 
 @HbaseTable(namespace="default", tableName="t_test_fonfee", family="cf1")
 public class ExtendsHbaseMap<V> extends HbaseMap<V> {

@@ -1,4 +1,4 @@
-package com.sf.sids.hbase.test;
+package code.ponfee.hbase.test;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -19,12 +19,12 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import com.alibaba.fastjson.JSONObject;
 import com.google.common.collect.ImmutableMap;
-import com.sf.sids.hbase.bean.PageQueryBuilder;
-import com.sf.sids.hbase.bean.PageSortOrder;
-import com.sf.sids.hbase.other.ExtendsHbaseEntity;
-import com.sf.sids.hbase.other.ExtendsHbaseEntityDao;
 
 import code.ponfee.commons.util.Dates;
+import code.ponfee.hbase.model.PageQueryBuilder;
+import code.ponfee.hbase.model.PageSortOrder;
+import code.ponfee.hbase.other.ExtendsHbaseEntity;
+import code.ponfee.hbase.other.ExtendsHbaseEntityDao;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(locations = { "classpath*:test-hbase.xml" })
