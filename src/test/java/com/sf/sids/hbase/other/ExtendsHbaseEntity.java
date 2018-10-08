@@ -55,8 +55,7 @@ public class ExtendsHbaseEntity extends HbaseEntity {
 
     @Override
     public String buildRowKey() {
-        super.rowKey = firstName + "_" + lastName + "_" + Dates.format(birthday, "yyyyMMdd");
-        return super.rowKey;
+        return super.rowKey = firstName + "_" + lastName + "_" + Dates.format(birthday, "yyyyMMdd");
     }
 
 }

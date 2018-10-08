@@ -513,7 +513,7 @@ public abstract class HbaseDao<T> {
             byte[] family = toBytes(familyName);
             long now = PROVIDER.now();
             List<Put> batch = new ArrayList<>(array.length);
-            for ( Map<String, Object> data :array) {
+            for (Map<String, Object> data : array) {
                 Put put = new Put(toBytes((String) data.get(ROW_KEY_NAME)));
                 data.entrySet().stream().filter(
                     e -> isNotEmpty(e.getKey()) && !ROW_KEY_NAME.equals(e.getKey())

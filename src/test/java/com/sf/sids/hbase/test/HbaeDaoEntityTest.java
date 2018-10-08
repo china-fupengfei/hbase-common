@@ -237,7 +237,7 @@ public class HbaeDaoEntityTest {
     @Test
     public void count() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
-        query.setRowKeyPrefix("fu_ponfee_201");
+        //query.setRowKeyPrefix("fu_ponfee_201");
         query.setMaxResultSize(0);
         printJson("======================" + hbaseDao.count(query));
     }
