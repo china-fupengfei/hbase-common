@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
 import java.lang.reflect.Field;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -31,6 +32,7 @@ import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.SerializationUtils;
+import org.apache.commons.lang3.time.DateUtils;
 import org.apache.commons.lang3.time.FastDateFormat;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.CellUtil;
@@ -74,6 +76,7 @@ import com.sf.sids.hbase.bean.PageQueryBuilder;
 import com.sf.sids.hbase.bean.PageSortOrder;
 
 import code.ponfee.commons.cache.DateProvider;
+import code.ponfee.commons.math.Numbers;
 import code.ponfee.commons.reflect.ClassUtils;
 import code.ponfee.commons.reflect.Fields;
 import code.ponfee.commons.reflect.GenericUtils;
@@ -852,6 +855,22 @@ public abstract class HbaseDao<T> {
         HbaseField hf = field.getDeclaredAnnotation(HbaseField.class);
         if (hf != null && hf.serial()) {
             Fields.put(target, field, SerializationUtils.deserialize(value));
+        } else if (   hf != null && ArrayUtils.isNotEmpty(hf.format()) 
+                   && Date.class.isAssignableFrom(field.getType())
+        ) {
+            Date date;
+            String str = Bytes.toString(value);
+            if (hf.format().length == 1 
+                && HbaseField.FORMAT_TIMESTAMP.equalsIgnoreCase(hf.format()[0])) {
+                date = new Date(Numbers.toLong(str));
+            } else {
+                try {
+                    date = DateUtils.parseDate(str, hf.format());
+                } catch (ParseException e) {
+                    throw new RuntimeException("Invalid date format: " + str);
+                }
+            }
+            Fields.put(target, field, date);
         } else {
             String str = Bytes.toString(value);
             if (field.getType().isPrimitive() && Strings.isEmpty(str)) {
@@ -923,16 +942,17 @@ public abstract class HbaseDao<T> {
             }
             return SerializationUtils.serialize((Serializable) value);
         }
-        if (hf == null || isEmpty(hf.format())) {
+        if (hf == null || ArrayUtils.isEmpty(hf.format())) {
             return toBytes(value.toString());
         }
 
         // HbaseField meta
         if (Date.class.isInstance(value)) {
-            if (HbaseField.FORMAT_TIMESTAMP.equalsIgnoreCase(hf.format())) {
+            if (hf.format().length == 1
+                && HbaseField.FORMAT_TIMESTAMP.equalsIgnoreCase(hf.format()[0])) {
                 return toBytes(Long.toString(((Date) value).getTime()));
             } else {
-                return toBytes(FastDateFormat.getInstance(hf.format()).format(value));
+                return toBytes(FastDateFormat.getInstance(hf.format()[0]).format(value));
             }
         }
         return toBytes(value.toString());

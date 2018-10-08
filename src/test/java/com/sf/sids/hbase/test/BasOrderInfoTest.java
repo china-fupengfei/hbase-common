@@ -1,13 +1,10 @@
 package com.sf.sids.hbase.test;
 
-import static com.sf.sids.hbase.bean.HbaseMap.ROW_KEY_NAME;
 
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ThreadLocalRandom;
 
 import javax.annotation.Resource;
 
@@ -198,7 +195,7 @@ public class BasOrderInfoTest {
     @Test
     public void page() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
-        query.setFamQuaes(ImmutableMap.of("cf1", new String[] { "age" }));
+        query.setFamQuaes(ImmutableMap.of("cf1", new String[] { "signin_tm" }));
         query.setMaxResultSize(0);
         printJson(hbaseDao.nextPage(query));
     }

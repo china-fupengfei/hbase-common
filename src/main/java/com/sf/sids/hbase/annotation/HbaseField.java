@@ -26,7 +26,7 @@ public @interface HbaseField {
     String qualifier() default "";
 
     /** the hbase value format. */
-    String format() default "";
+    String[] format() default {};
 
     // ---------------------------------------public static final field
     String FORMAT_TIMESTAMP = "timestamp";

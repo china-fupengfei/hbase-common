@@ -1,11 +1,17 @@
 package com.sf.sids.hbase.other;
 
+import java.util.Date;
+
+import com.alibaba.fastjson.annotation.JSONField;
 import com.sf.sids.hbase.annotation.HbaseField;
 import com.sf.sids.hbase.annotation.HbaseTable;
 import com.sf.sids.hbase.bean.HbaseEntity;
 
-@HbaseTable(namespace = "dm_disnet", tableName = "t_dw_bas_order_info")
+@HbaseTable(namespace = "dm_disnet", tableName = "t_bas_order_info")
 public class BasOrderInfo extends HbaseEntity {
+
+    private static final String DATE_PATTERN1 = "yyyy-MM-dd HH:mm:ss.SSS";
+    private static final String DATE_PATTERN2 = "yyyy-MM-dd HH:mm:ss";
 
     // {"first_loading_tm":"NULL","warehouse_code":"010DCF","city_code":"532","closed_time":"2016-04-02 14:31:28.0","product_code":"SE0004","actual_weight":"0.51","order_date":"2016-04-01 20:30:48.0","city_name":"青岛市","warehouse_name":"北京通州RDC","sku_no":"03.21.3211102-T","sku_qty":"1.0","price":"799.0","wms_receive_time":"2016-04-02 11:11:46.0","rowNum":0,"order_amount":"799.0","inc_day":"20160401","rowkey":"4_MEIZU_20160401_S1603290008630_03.21.3211102-T","waybill_no":"NULL","company_code":"MEIZU","signin_tm":"2016-04-04 17:12:39.0","rowKey":"4_MEIZU_20160401_S1603290008630_03.21.3211102-T","erp_order":"S1603290008630","is_other_warehouse":"0"}
     private static final long serialVersionUID = -913024633554782398L;
@@ -19,17 +25,19 @@ public class BasOrderInfo extends HbaseEntity {
     //@HbaseField(qualifier = "city_code")
     private String cityCode;
 
-    //@HbaseField(qualifier = "closed_time")
-    private String closedTime;
+    @HbaseField(format = { DATE_PATTERN1, DATE_PATTERN2 })
+    @JSONField(format = DATE_PATTERN2)
+    private Date closedTime;
 
     //@HbaseField(qualifier = "product_code")
     private String productCode;
 
     //@HbaseField(qualifier = "actual_weight")
-    private String actualWeight;
+    private double actualWeight;
 
-    //@HbaseField(qualifier = "order_date")
-    private String orderDate;
+    @HbaseField(format = { DATE_PATTERN1, DATE_PATTERN2 })
+    @JSONField(format = DATE_PATTERN2)
+    private Date orderDate;
 
     //@HbaseField(qualifier = "city_name")
     private String cityName;
@@ -41,16 +49,17 @@ public class BasOrderInfo extends HbaseEntity {
     private String skuNo;
 
     //@HbaseField(qualifier = "sku_qty")
-    private String skuQty;
+    private long skuQty;
 
     //@HbaseField(qualifier = "price")
-    private String price;
+    private double price;
 
-    //@HbaseField(qualifier = "wms_receive_time")
-    private String wmsReceiveTime;
+    @HbaseField(format = { DATE_PATTERN1, DATE_PATTERN2 })
+    @JSONField(format = DATE_PATTERN2)
+    private Date wmsReceiveTime;
 
     //@HbaseField(qualifier = "order_amount")
-    private String orderAmount;
+    private double orderAmount;
 
     //@HbaseField(qualifier = "inc_day")
     private String incDay;
@@ -61,8 +70,9 @@ public class BasOrderInfo extends HbaseEntity {
     //@HbaseField(qualifier = "company_code")
     private String companyCode;
 
-    //@HbaseField(qualifier = "signin_tm")
-    private String signinTm;
+    @HbaseField(format = { DATE_PATTERN1, DATE_PATTERN2 })
+    @JSONField(format = DATE_PATTERN2)
+    private Date signinTm;
 
     //@HbaseField(qualifier = "erp_order")
     private String erpOrder;
@@ -99,11 +109,11 @@ public class BasOrderInfo extends HbaseEntity {
         this.cityCode = cityCode;
     }
 
-    public String getClosedTime() {
+    public Date getClosedTime() {
         return closedTime;
     }
 
-    public void setClosedTime(String closedTime) {
+    public void setClosedTime(Date closedTime) {
         this.closedTime = closedTime;
     }
 
@@ -115,19 +125,19 @@ public class BasOrderInfo extends HbaseEntity {
         this.productCode = productCode;
     }
 
-    public String getActualWeight() {
+    public double getActualWeight() {
         return actualWeight;
     }
 
-    public void setActualWeight(String actualWeight) {
+    public void setActualWeight(double actualWeight) {
         this.actualWeight = actualWeight;
     }
 
-    public String getOrderDate() {
+    public Date getOrderDate() {
         return orderDate;
     }
 
-    public void setOrderDate(String orderDate) {
+    public void setOrderDate(Date orderDate) {
         this.orderDate = orderDate;
     }
 
@@ -155,35 +165,35 @@ public class BasOrderInfo extends HbaseEntity {
         this.skuNo = skuNo;
     }
 
-    public String getSkuQty() {
+    public long getSkuQty() {
         return skuQty;
     }
 
-    public void setSkuQty(String skuQty) {
+    public void setSkuQty(long skuQty) {
         this.skuQty = skuQty;
     }
 
-    public String getPrice() {
+    public double getPrice() {
         return price;
     }
 
-    public void setPrice(String price) {
+    public void setPrice(double price) {
         this.price = price;
     }
 
-    public String getWmsReceiveTime() {
+    public Date getWmsReceiveTime() {
         return wmsReceiveTime;
     }
 
-    public void setWmsReceiveTime(String wmsReceiveTime) {
+    public void setWmsReceiveTime(Date wmsReceiveTime) {
         this.wmsReceiveTime = wmsReceiveTime;
     }
 
-    public String getOrderAmount() {
+    public double getOrderAmount() {
         return orderAmount;
     }
 
-    public void setOrderAmount(String orderAmount) {
+    public void setOrderAmount(double orderAmount) {
         this.orderAmount = orderAmount;
     }
 
@@ -211,11 +221,11 @@ public class BasOrderInfo extends HbaseEntity {
         this.companyCode = companyCode;
     }
 
-    public String getSigninTm() {
+    public Date getSigninTm() {
         return signinTm;
     }
 
-    public void setSigninTm(String signinTm) {
+    public void setSigninTm(Date signinTm) {
         this.signinTm = signinTm;
     }
 
