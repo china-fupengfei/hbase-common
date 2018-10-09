@@ -14,4 +14,8 @@ public abstract class HbaseMap<V> extends HashMap<String, V> {
     /** The hbase row key name */
     public static final String ROW_KEY_NAME = "rowKey";
     public static final String ROW_NUM_NAME = "rowNum";
+
+    public String buildRowKey() {
+        return null;
+    }
 }

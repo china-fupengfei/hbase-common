@@ -142,7 +142,7 @@ public abstract class HbaseDao<T> {
         this.tableName = buildTableName(ht.namespace(), tableName);
 
         // global family
-        this.globalFamily = ht != null ? ht.family() : null;
+        this.globalFamily = (ht != null && isNotBlank(ht.family())) ? ht.family() : null;
 
         // entity Families
         ImmutableList.Builder<byte[]> builder = new ImmutableList.Builder<>();
