@@ -5,12 +5,13 @@ import java.util.Date;
 import com.alibaba.fastjson.annotation.JSONField;
 
 import code.ponfee.commons.util.Dates;
+import code.ponfee.hbase.Constants;
 import code.ponfee.hbase.annotation.HbaseField;
 import code.ponfee.hbase.annotation.HbaseTable;
 import code.ponfee.hbase.model.HbaseEntity;
 
-@HbaseTable(namespace = "ponfee", tableName = "t_test_entity", family = "cf1")
-public class ExtendsHbaseEntity extends HbaseEntity {
+@HbaseTable(namespace = Constants.HBASE_NAMESPACE, tableName = "t_test_entity", family = "cf1")
+public class ExtendsHbaseEntity extends HbaseEntity<String> {
 
     private static final long serialVersionUID = -1701075762499122949L;
     private String firstName;
@@ -55,7 +56,8 @@ public class ExtendsHbaseEntity extends HbaseEntity {
 
     @Override
     public String buildRowKey() {
-        return super.rowKey = firstName + "_" + lastName + "_" + Dates.format(birthday, "yyyyMMdd");
+        super.rowKey = firstName + "_" + lastName + "_" + Dates.format(birthday, "yyyyMMdd");
+        return super.rowKey;
     }
 
 }

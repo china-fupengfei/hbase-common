@@ -19,7 +19,7 @@ public @interface HbaseField {
     /** serial object */
     boolean serial() default false;
 
-    /** the hbase field level family name. */
+    /** the column level hbase family name. */
     String family() default "";
 
     /** the hbase qualifier name. */

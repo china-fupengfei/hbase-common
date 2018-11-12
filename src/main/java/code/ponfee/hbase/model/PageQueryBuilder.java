@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.StringUtils;
 
 import com.google.common.base.Preconditions;
 
@@ -20,9 +19,17 @@ public class PageQueryBuilder {
     private final int pageSize;
     private final PageSortOrder sortOrder;
 
-    private String startRow;
-    private String rowKeyRegexp;
-    private String rowKeyPrefix;
+    private boolean requireRowNum = true; // 是否包含行号
+
+    private Object startRow;
+    private Boolean inclusiveStartRow;
+    private Object stopRow;
+    private Boolean inclusiveStopRow;
+
+    private Object rowKeyPrefix;
+
+    private String rowKeyRegexp; // 正则：只支持字符串
+
     private Map<String, String[]> famQuaes;
     private int maxResultSize = -1;
     private boolean rowKeyOnly = false;
@@ -42,19 +49,38 @@ public class PageQueryBuilder {
         return new PageQueryBuilder(pageSize, PageSortOrder.ASC);
     }
 
-    public static PageQueryBuilder newBuilder(int pageSize, PageSortOrder sortOrder) {
+    public static PageQueryBuilder newBuilder(
+        int pageSize, PageSortOrder sortOrder) {
         return new PageQueryBuilder(pageSize, sortOrder);
     }
 
-    public void setStartRow(String startRow) {
+    public void setStartRow(Object startRow) {
+        this.setStartRow(startRow, null);
+    }
+
+    public void setStartRow(Object startRow, Boolean inclusiveStartRow) {
         this.startRow = startRow;
+        this.inclusiveStartRow = inclusiveStartRow;
+    }
+
+    public void setStopRow(Object stopRow) {
+        this.setStopRow(stopRow, null);
+    }
+
+    public void setRequireRowNum(boolean requireRowNum) {
+        this.requireRowNum = requireRowNum;
+    }
+
+    public void setStopRow(Object stopRow, Boolean inclusiveStopRow) {
+        this.stopRow = stopRow;
+        this.inclusiveStopRow = inclusiveStopRow;
     }
 
     public void setRowKeyRegexp(String rowKeyRegexp) {
         this.rowKeyRegexp = rowKeyRegexp;
     }
 
-    public void setRowKeyPrefix(String rowKeyPrefix) {
+    public void setRowKeyPrefix(Object rowKeyPrefix) {
         this.rowKeyPrefix = rowKeyPrefix;
     }
 
@@ -74,21 +100,25 @@ public class PageQueryBuilder {
     public int getPageSize() {
         return pageSize;
     }
-    
+
     public int getActualPageSize() {
         return isInclusiveStartRow() ? pageSize : pageSize + 1;
     }
 
-    public String getStartRow() {
+    public Object getStartRow() {
         return startRow;
+    }
+
+    public Object getStopRow() {
+        return stopRow;
+    }
+
+    public Object getRowKeyPrefix() {
+        return rowKeyPrefix;
     }
 
     public String getRowKeyRegexp() {
         return rowKeyRegexp;
-    }
-
-    public String getRowKeyPrefix() {
-        return rowKeyPrefix;
     }
 
     public Map<String, String[]> getFamQuaes() {
@@ -103,12 +133,20 @@ public class PageQueryBuilder {
         return rowKeyOnly;
     }
 
+    public boolean isRequireRowNum() {
+        return requireRowNum;
+    }
+
     public PageSortOrder getSortOrder() {
         return ObjectUtils.orElse(sortOrder, PageSortOrder.ASC);
     }
 
     public boolean isInclusiveStartRow() {
-        return StringUtils.isEmpty(startRow);
+        return ObjectUtils.orElse(inclusiveStartRow, ObjectUtils.isEmpty(startRow));
+    }
+
+    public Boolean isInclusiveStopRow() {
+        return ObjectUtils.orElse(inclusiveStopRow, true);
     }
 
     // ----------------------------------------------------------------page start

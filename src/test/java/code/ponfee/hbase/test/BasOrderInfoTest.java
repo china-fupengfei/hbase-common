@@ -17,6 +17,7 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import com.alibaba.fastjson.JSONObject;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 
 import code.ponfee.hbase.model.PageQueryBuilder;
 import code.ponfee.hbase.model.PageSortOrder;
@@ -31,6 +32,11 @@ public class BasOrderInfoTest {
     private @Resource BasOrderInfoDao hbaseDao;
 
     @Test
+    public void tableExists() {
+        System.out.println(hbaseDao.tableExists());
+    }
+    
+    @Test
     @Ignore
     public void dropTable() {
         System.out.println(hbaseDao.dropTable());
@@ -40,14 +46,9 @@ public class BasOrderInfoTest {
     public void createTable() {
         System.out.println(hbaseDao.createTable());
     }
-
     @Test
     public void descTable() {
         System.out.println(hbaseDao.descTable());
-    }
-
-    @Test
-    public void put() {
     }
 
     @Test
@@ -206,17 +207,8 @@ public class BasOrderInfoTest {
     }
 
     @Test
-    public void page() {
-        PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
-        query.setFamQuaes(ImmutableMap.of("cf1", new String[] { "signin_tm" }));
-        query.setMaxResultSize(0);
-        printJson(hbaseDao.nextPage(query));
-    }
-
-    @Test
     public void count() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
-        query.setFamQuaes(ImmutableMap.of("cf1", new String[] { "age" }));
         query.setMaxResultSize(0);
         printJson("======================" + hbaseDao.count(query));
     }
@@ -236,7 +228,7 @@ public class BasOrderInfoTest {
     @Test
     public void delete() {
         printJson(hbaseDao.get("4_MEIZU_20160401_S1603310004352_03.21.3211104-W"));
-        printJson(hbaseDao.delete(new String[] { "4_MEIZU_20160401_S1603310004352_03.21.3211104-W" }));
+        printJson(hbaseDao.delete(Lists.newArrayList("4_MEIZU_20160401_S1603310004352_03.21.3211104-W")));
         printJson(hbaseDao.get("4_MEIZU_20160401_S1603310004352_03.21.3211104-W"));
     }
 

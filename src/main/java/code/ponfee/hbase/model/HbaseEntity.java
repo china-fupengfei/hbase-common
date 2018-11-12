@@ -1,9 +1,10 @@
 package code.ponfee.hbase.model;
 
+import java.beans.Transient;
 import java.io.Serializable;
-import java.util.Objects;
 
 import org.apache.commons.lang3.builder.CompareToBuilder;
+import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 import code.ponfee.hbase.annotation.HbaseField;
@@ -13,13 +14,13 @@ import code.ponfee.hbase.annotation.HbaseField;
  * 
  * @author Ponfee
  */
-public abstract class HbaseEntity
-    implements Serializable, Comparable<HbaseEntity> {
+public abstract class HbaseEntity<R extends Serializable & Comparable<R>>
+    implements Serializable, Comparable<HbaseEntity<R>> {
 
     private static final long serialVersionUID = 2467942701509706341L;
 
     @HbaseField(ignore = true)
-    protected String rowKey;
+    protected R rowKey;
 
     @HbaseField(ignore = true)
     protected int rowNum;
@@ -33,15 +34,21 @@ public abstract class HbaseEntity
     /**
      * Returns the data object hbase rowkey
      * 
-     * @return a string as rowkey
+     * @return a rowkey
      */
-    public abstract String buildRowKey();
+    public R buildRowKey() {
+        return this.getRowKey();
+    }
 
-    public String getRowKey() {
+    public @Transient String getRowKeyAsString() {
+        return rowKey == null ? null : rowKey.toString();
+    }
+
+    public R getRowKey() {
         return rowKey;
     }
 
-    public void setRowKey(String rowKey) {
+    public void setRowKey(R rowKey) {
         this.rowKey = rowKey;
     }
 
@@ -54,7 +61,7 @@ public abstract class HbaseEntity
     }
 
     @Override
-    public int compareTo(HbaseEntity o) {
+    public int compareTo(HbaseEntity<R> o) {
         if (o == null) {
             return 1;
         }
@@ -67,13 +74,15 @@ public abstract class HbaseEntity
         return new HashCodeBuilder().append(rowKey).toHashCode();
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public boolean equals(Object obj) {
         if (!(obj instanceof HbaseEntity)) {
             return false;
         }
-        //return new EqualsBuilder().append(rowKey, ((Entity) obj).rowKey).isEquals();
-        return Objects.equals(rowKey, ((HbaseEntity) obj).rowKey);
+        return new EqualsBuilder()
+                .append(rowKey, ((HbaseEntity<R>) obj).rowKey)
+                .isEquals();
     }
 
     @Override

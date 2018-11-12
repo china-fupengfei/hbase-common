@@ -1,7 +1,6 @@
 package code.ponfee.hbase.test;
 
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -10,7 +9,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Resource;
 
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.time.FastDateFormat;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -18,7 +16,7 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import com.alibaba.fastjson.JSONObject;
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 
 import code.ponfee.commons.util.Dates;
 import code.ponfee.hbase.model.PageQueryBuilder;
@@ -39,20 +37,22 @@ public class HbaeDaoEntityTest {
     }
     
     @Test
+    @Ignore
     public void createTable() {
         System.out.println(hbaseDao.createTable());
     }
     
     @Test
+    @Ignore
     public void descTable() {
         System.out.println(hbaseDao.descTable());
     }
 
     @Test
-    //@Ignore
+    @Ignore
     public void batchPut() {
-        int count = 200;
-        ExtendsHbaseEntity[] batch = new ExtendsHbaseEntity[count];
+        int count = 201;
+        List<ExtendsHbaseEntity> batch = new ArrayList<>();
         for (int start = 3, i = start; i < count + start; i++) {
             ExtendsHbaseEntity entity = new ExtendsHbaseEntity();
             //entity.setFirstName(RandomStringUtils.randomAlphabetic(3));
@@ -62,29 +62,39 @@ public class HbaeDaoEntityTest {
             entity.setAge(ThreadLocalRandom.current().nextInt(60));
             entity.setBirthday(Dates.random(Dates.toDate("20000101", "yyyyMMdd")));
             entity.buildRowKey();
-            batch[i - start] = entity;
+            batch.add(entity);
         }
         printJson(hbaseDao.put(batch));
     }
 
     @Test
     public void get() {
-        printJson(hbaseDao.get("fu_ponfee_20000102"));
+        printJson(hbaseDao.get("fu_ponfee_20181009"));
     }
 
     @Test
     public void first() {
         printJson(hbaseDao.first());
     }
-    
+
     @Test
     public void last() {
         printJson(hbaseDao.last());
     }
 
     @Test
+    public void nextRowKey() {
+        printJson(hbaseDao.nextRowKey("fu_ponfee_2007", "fu_ponfee_2009"));
+    }
+
+    @Test
+    public void previousRowKey() {
+        printJson(hbaseDao.previousRowKey("fu_ponfee_200", "fu_ponfee_2001"));
+    }
+
+    @Test
     public void range() {
-        printJson(hbaseDao.range("fu_ponfee_20000101", "fu_ponfee_20090101"));
+        printJson(hbaseDao.range("fu_ponfee_2001", "fu_ponfee_2002"));
     }
 
     @Test
@@ -104,81 +114,40 @@ public class HbaeDaoEntityTest {
 
     @Test
     public void nextPage() {
-        PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE, PageSortOrder.ASC);
+        PageQueryBuilder query = PageQueryBuilder.newBuilder(5, PageSortOrder.ASC);
+        //query.setRowKeyPrefix("fu_ponfee_2009");
+        query.setStartRow("fu_ponfee_20070309");
         printJson(hbaseDao.nextPage(query));
     }
 
     @Test
     public void nextPageAll() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE, PageSortOrder.ASC);
-        query.setFamQuaes(ImmutableMap.of("cf1", new String[] { "first_name" }));
-        List<ExtendsHbaseEntity> data = new ArrayList<>();
-        int count = 1;
-        List<ExtendsHbaseEntity> list = (List<ExtendsHbaseEntity>) hbaseDao.nextPage(query);
-        while (CollectionUtils.isNotEmpty(list) && list.size() == query.getPageSize()) {
-            count ++;
-            data.addAll(list);
-            printJson(list);
-            printJson((String) query.nextPageStartRow(list).getRowKey());
-            query.setStartRow((String) query.nextPageStartRow(list).getRowKey());
-            list = (List<ExtendsHbaseEntity>) hbaseDao.nextPage(query);
-        }
-        if (CollectionUtils.isNotEmpty(list)) {
-            data.addAll(list);
-        }
-        Set<String> set = new LinkedHashSet<>();
+        //query.setRowKeyPrefix("fu_ponfee_2009");
+        //query.setFamQuaes(ImmutableMap.of("cf1", new String[] { "first_name" }));
         //Set<String> set = new TreeSet<>();
-        data.stream().forEach(m -> set.add((String)m.getRowKey()));
-        System.out.println("======================round: " + count);
-        System.out.println("======================" + set.size());
+        Set<String> set = new LinkedHashSet<>();
+        hbaseDao.scrollQuery(query, (pageNum, data)->{
+            System.err.println("======================pageNum: " + pageNum);
+            printJson(data);
+            data.stream().forEach(m -> set.add((String)m.getRowKey()));
+        });
+        System.err.println("======================" + set.size());
         printJson(set);
     }
 
     @Test
-    public void nextPageAllDesc() {
-        PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE, PageSortOrder.DESC);
-        query.setRowKeyPrefix("fu_ponfee_201");
-        query.setFamQuaes(ImmutableMap.of("cf1", new String[] { "first_name" }));
-        List<ExtendsHbaseEntity> data = new ArrayList<>();
-        int count = 1;
-        List<ExtendsHbaseEntity> list = (List<ExtendsHbaseEntity>) hbaseDao.nextPage(query);
-        while (CollectionUtils.isNotEmpty(list) && list.size() == query.getPageSize()) {
-            count ++;
-            data.addAll(list);
-            printJson(list);
-            printJson((String) query.nextPageStartRow(list).getRowKey());
-            query.setStartRow((String) query.nextPageStartRow(list).getRowKey());
-            list = (List<ExtendsHbaseEntity>) hbaseDao.nextPage(query);
-        }
-        if (CollectionUtils.isNotEmpty(list)) {
-            data.addAll(list);
-        }
-        Set<String> set = new LinkedHashSet<>();
-        //Set<String> set = new TreeSet<>();
-        data.stream().forEach(m -> set.add((String)m.getRowKey()));
-        System.out.println("======================round: " + count);
-        System.out.println("======================" + set.size());
-        printJson(set);
-    }
-    
-    @Test
     public void previousPage() {
-        PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
-        query.setStartRow("fu_ponfee_20000331");
-        printJson(hbaseDao.previousPage(query));
-    }
-    
-    @Test
-    public void previousPageDesc() {
-        PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE, PageSortOrder.DESC);
+        PageQueryBuilder query = PageQueryBuilder.newBuilder(5, PageSortOrder.DESC);
+        query.setStartRow("fu_ponfee_20121019");
         printJson(hbaseDao.previousPage(query));
     }
 
     @Test
     public void previousPageAll() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
-        query.setStartRow("fu_ponfee_20181128");
-        query.setFamQuaes(ImmutableMap.of("cf1", new String[] { "first_name" }));
+        //query.setStartRow("fu_ponfee_20181128");
+        //query.setFamQuaes(ImmutableMap.of("cf1", new String[] { "first_name" }));
         List<ExtendsHbaseEntity> data = new ArrayList<>();
         int count = 1;
         List<ExtendsHbaseEntity> list = (List<ExtendsHbaseEntity>) hbaseDao.previousPage(query);
@@ -202,44 +171,16 @@ public class HbaeDaoEntityTest {
     }
 
     @Test
-    public void previousPageAllDesc() {
-        PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE, PageSortOrder.DESC);
-        query.setStartRow("fu_ponfee_20010101");
-        query.setFamQuaes(ImmutableMap.of("cf1", new String[] { "first_name" }));
-        List<ExtendsHbaseEntity> data = new ArrayList<>();
-        int count = 1;
-        List<ExtendsHbaseEntity> list = (List<ExtendsHbaseEntity>) hbaseDao.previousPage(query);
-        while (CollectionUtils.isNotEmpty(list) && list.size() == query.getPageSize()) {
-            count ++;
-            data.addAll(list);
-            printJson(list);
-            printJson((String) query.previousPageStartRow(list).getRowKey());
-            query.setStartRow((String) query.previousPageStartRow(list).getRowKey());
-            list = (List<ExtendsHbaseEntity>) hbaseDao.previousPage(query);
-        }
-        if (CollectionUtils.isNotEmpty(list)) {
-            data.addAll(list);
-        }
-        Set<String> set = new LinkedHashSet<>();
-        //Set<String> set = new TreeSet<>();
-        data.stream().forEach(m -> set.add((String)m.getRowKey()));
-        System.out.println("======================round: " + count);
-        System.out.println("======================" + set.size());
-        printJson(set);
-    }
-
-    @Test
-    public void page() {
-        PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
-        query.setFamQuaes(ImmutableMap.of("cf1", new String[] { "age" }));
-        query.setMaxResultSize(0);
-        printJson(hbaseDao.nextPage(query));
+    public void deletePage() {
+        PageQueryBuilder query = PageQueryBuilder.newBuilder(3);
+        query.setRowKeyPrefix("fu_ponfee_2009");
+        printJson(hbaseDao.delete(query));
     }
 
     @Test
     public void count() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
-        //query.setRowKeyPrefix("fu_ponfee_201");
+        query.setRowKeyPrefix("fu_ponfee_201");
         query.setMaxResultSize(0);
         printJson("======================" + hbaseDao.count(query));
     }
@@ -258,9 +199,10 @@ public class HbaeDaoEntityTest {
     }
 
     @Test
+    @Ignore
     public void delete() {
         printJson(hbaseDao.get("fu_ponfee_20011031"));
-        printJson(hbaseDao.delete(new String[] { "fu_ponfee_20011031","fu_ponfee_20110531" }));
+        printJson(hbaseDao.delete(Lists.newArrayList("fu_ponfee_20011031","fu_ponfee_20110531" )));
         printJson(hbaseDao.get("fu_ponfee_20110531"));
     }
 
@@ -272,11 +214,6 @@ public class HbaeDaoEntityTest {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-    }
-    
-    public static void main(String[] args) {
-        System.out.println(FastDateFormat.getInstance("yyyyMMdd").format(new Date()));
-        System.out.println(FastDateFormat.getInstance("yyyyMMdd").format(new Date()));
     }
 
 }

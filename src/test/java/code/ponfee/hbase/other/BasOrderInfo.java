@@ -1,15 +1,19 @@
 package code.ponfee.hbase.other;
 
+import static code.ponfee.hbase.HbaseHelper.partition;
+
 import java.util.Date;
 
 import com.alibaba.fastjson.annotation.JSONField;
 
+import code.ponfee.commons.util.Dates;
+import code.ponfee.hbase.Constants;
 import code.ponfee.hbase.annotation.HbaseField;
 import code.ponfee.hbase.annotation.HbaseTable;
 import code.ponfee.hbase.model.HbaseEntity;
 
-@HbaseTable(namespace = "dm_disnet", tableName = "t_bas_order_info")
-public class BasOrderInfo extends HbaseEntity {
+@HbaseTable(namespace = Constants.HBASE_NAMESPACE, tableName = "t_bas_order_info", family="cf1")
+public class BasOrderInfo extends HbaseEntity<String> {
 
     private static final String DATE_PATTERN1 = "yyyy-MM-dd HH:mm:ss.SSS";
     private static final String DATE_PATTERN2 = "yyyy-MM-dd HH:mm:ss";
@@ -83,7 +87,11 @@ public class BasOrderInfo extends HbaseEntity {
 
     @Override
     public String buildRowKey() {
-        return null;
+        //4_MEIZU_20160401_S1603290008630_03.21.3211102-T
+        return super.rowKey = String.join("_", 
+           partition(companyCode), warehouseCode, 
+           Dates.format(orderDate, "yyyyMMdd"), erpOrder, skuNo
+       );
     }
 
     public String getFirstLoadingTm() {

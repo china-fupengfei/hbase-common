@@ -12,6 +12,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Resource;
 
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -20,7 +21,9 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import com.alibaba.fastjson.JSONObject;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 
+import code.ponfee.commons.util.Dates;
 import code.ponfee.hbase.model.PageQueryBuilder;
 import code.ponfee.hbase.model.PageSortOrder;
 import code.ponfee.hbase.other.ExtendsHbaseMap;
@@ -29,7 +32,7 @@ import code.ponfee.hbase.other.ExtendsHbaseMapDao;
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(locations = { "classpath*:test-hbase.xml" })
 public class HbaeDaoMapTest {
-    private static final int PAGE_SIZE = 20;
+    private static final int PAGE_SIZE = 11;
     private @Resource ExtendsHbaseMapDao hbaseDao;
 
     @Test
@@ -37,59 +40,38 @@ public class HbaeDaoMapTest {
     public void dropTable() {
         System.out.println(hbaseDao.dropTable());
     }
-    
+
     @Test
+    @Ignore
     public void createTable() {
         System.out.println(hbaseDao.createTable());
     }
 
     @Test
+    @Ignore
     public void descTable() {
         System.out.println(hbaseDao.descTable());
     }
 
     @Test
-    public void put() {
-        ExtendsHbaseMap<Object> map = new ExtendsHbaseMap<>();
-        map.put("name", "ponfee");
-        map.put("age", 3);
-        map.put("time", new Date());
-        map.put("rowKey", "ponfee");
-        printJson(hbaseDao.put(map));
-        
-        map = new ExtendsHbaseMap<>();
-        map.put("name", "ponfee1");
-        map.put("age", 3);
-        map.put("time", new Date());
-        map.put("rowKey", "ponfee1");
-        printJson(hbaseDao.put(map));
-        
-        map = new ExtendsHbaseMap<>();
-        map.put("name", "ponfee2");
-        map.put("age", 3);
-        map.put("time", new Date());
-        map.put("rowKey", "ponfee2");
-        printJson(hbaseDao.put(map));
-    }
-
-    @Test
-    //@Ignore
+    @Ignore
     public void batchPut() {
         int count = 200;
-        ExtendsHbaseMap<Object>[] batch = new ExtendsHbaseMap[count];
+        List<ExtendsHbaseMap<Object>> batch = new ArrayList<>();
+        Date date = Dates.toDate("20000101", "yyyyMMdd");
         for (int start = 3, i = start; i < count + start; i++) {
             ExtendsHbaseMap<Object> map = new ExtendsHbaseMap<>();
             map.put("age", 1 + ThreadLocalRandom.current().nextInt(60));
-            map.put("name", "name"+i);
-            map.put("rowKey", "name"+i);
-            batch[i - start] = map;
+            map.put("name", RandomStringUtils.randomAlphanumeric(5));
+            map.put("rowKey", Dates.format(Dates.random(date), "yyyyMMddHHmmss"));
+            batch.add(map);
         }
         printJson(hbaseDao.put(batch));
     }
 
     @Test
     public void get() {
-        printJson(hbaseDao.get("ponfee"));
+        printJson(hbaseDao.get("20000201211046"));
     }
 
     @Test
@@ -104,15 +86,15 @@ public class HbaeDaoMapTest {
 
     @Test
     public void range() {
-        printJson(hbaseDao.range("name89", "name95"));
+        printJson(hbaseDao.range("20000201211046", "20060201211046"));
     }
 
     @Test
     public void find() {
-        printJson(hbaseDao.find("name89", "name94", 20));
-        printJson(hbaseDao.find("name89", "name94", 2));
-        printJson(hbaseDao.find("name94", "name89", 20, true));
-        printJson(hbaseDao.find("name94", "name89", 2, true));
+        printJson(hbaseDao.find("20041014150203", "20050828085930", 20));
+        printJson(hbaseDao.find("20041014150203", "20050828085930", 2));
+        printJson(hbaseDao.find("20050828085930", "20041014150203", 20, true));
+        printJson(hbaseDao.find("20050828085930", "20041014150203", 2, true));
     }
 
     @Test
@@ -130,102 +112,39 @@ public class HbaeDaoMapTest {
 
     @Test
     public void nextPageAll() {
-        PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
-        query.setFamQuaes(ImmutableMap.of("cf1", new String[] { "name" }));
-        List<ExtendsHbaseMap<Object>> data = new ArrayList<>();
-        int count = 1;
-        List<ExtendsHbaseMap<Object>> list = (List<ExtendsHbaseMap<Object>>) hbaseDao.nextPage(query);
-        while (CollectionUtils.isNotEmpty(list) && list.size() == query.getPageSize()) {
-            count ++;
-            data.addAll(list);
-            printJson(list);
-            printJson((String) query.nextPageStartRow(list).get(ROW_KEY_NAME));
-            query.setStartRow((String) query.nextPageStartRow(list).get(ROW_KEY_NAME));
-            list = (List<ExtendsHbaseMap<Object>>) hbaseDao.nextPage(query);
-        }
-        if (CollectionUtils.isNotEmpty(list)) {
-            data.addAll(list);
-        }
-        Set<String> set = new LinkedHashSet<>();
+        PageQueryBuilder query = PageQueryBuilder.newBuilder(111, PageSortOrder.ASC);
+        query.setStartRow("00000000");
+        //query.setRowKeyPrefix("fu_ponfee_2009");
         //Set<String> set = new TreeSet<>();
-        data.stream().forEach(m -> set.add((String)m.get(ROW_KEY_NAME)));
-        System.out.println("======================count: " + count);
-        System.out.println("======================" + set.size());
+        Set<String> set = new LinkedHashSet<>();
+        hbaseDao.scrollQuery(query, (pageNum, data)->{
+            System.err.println("======================pageNum: " + pageNum);
+            printJson(data);
+            data.stream().forEach(m -> set.add((String)m.getRowKey()));
+        });
+        System.err.println("======================" + set.size());
         printJson(set);
     }
 
     @Test
-    public void nextPageAllDESC() {
-        PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE, PageSortOrder.DESC);
-        query.setFamQuaes(ImmutableMap.of("cf1", new String[] { "name" }));
-        List<ExtendsHbaseMap<Object>> data = new ArrayList<>();
-        int count = 1;
-        List<ExtendsHbaseMap<Object>> list = (List<ExtendsHbaseMap<Object>>) hbaseDao.nextPage(query);
-        while (CollectionUtils.isNotEmpty(list) && list.size() == query.getPageSize()) {
-            count ++;
-            data.addAll(list);
-            printJson(list);
-            printJson((String) query.nextPageStartRow(list).get(ROW_KEY_NAME));
-            query.setStartRow((String) query.nextPageStartRow(list).get(ROW_KEY_NAME));
-            list = (List<ExtendsHbaseMap<Object>>) hbaseDao.nextPage(query);
-        }
-        if (CollectionUtils.isNotEmpty(list)) {
-            data.addAll(list);
-        }
-        Set<String> set = new LinkedHashSet<>();
-        //Set<String> set = new TreeSet<>();
-        data.stream().forEach(m -> set.add((String)m.get(ROW_KEY_NAME)));
-        System.out.println("======================count: " + count);
-        System.out.println("======================" + set.size());
-        printJson(set);
-    }
-    
-    @Test
     public void previousPage() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
-        query.setStartRow("name85");
+        query.setStartRow("20050828085930");
         printJson(hbaseDao.previousPage(query));
     }
     
     @Test
     public void previousPageDesc() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE, PageSortOrder.DESC);
-        query.setStartRow("name85");
+        query.setStartRow("20050828085930");
         printJson(hbaseDao.previousPage(query));
     }
 
     @Test
     public void previousPageAll() {
-        PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
+        PageQueryBuilder query = PageQueryBuilder.newBuilder(111);
         query.setFamQuaes(ImmutableMap.of("cf1", new String[] { "name" }));
-        query.setStartRow("ponfee2");
-        List<ExtendsHbaseMap<Object>> data = new ArrayList<>();
-        int count = 1;
-        List<ExtendsHbaseMap<Object>> list = (List<ExtendsHbaseMap<Object>>) hbaseDao.previousPage(query);
-        while (CollectionUtils.isNotEmpty(list) && list.size() == query.getPageSize()) {
-            count ++;
-            data.addAll(list);
-            printJson(list);
-            printJson((String) query.previousPageStartRow(list).get(ROW_KEY_NAME));
-            query.setStartRow((String) query.previousPageStartRow(list).get(ROW_KEY_NAME));
-            list = (List<ExtendsHbaseMap<Object>>) hbaseDao.previousPage(query);
-        }
-        if (CollectionUtils.isNotEmpty(list)) {
-            data.addAll(list);
-        }
-        Set<String> set = new LinkedHashSet<>();
-        //Set<String> set = new TreeSet<>();
-        data.stream().forEach(m -> set.add((String)m.get(ROW_KEY_NAME)));
-        System.out.println("======================count: " + count);
-        System.out.println("======================" + set.size());
-        printJson(set);
-    }
-
-    @Test
-    public void previousPageAllDesc() {
-        PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE, PageSortOrder.DESC);
-        query.setFamQuaes(ImmutableMap.of("cf1", new String[] { "name" }));
-        query.setStartRow("name10");
+        query.setStartRow("20181004162958");
         List<ExtendsHbaseMap<Object>> data = new ArrayList<>();
         int count = 1;
         List<ExtendsHbaseMap<Object>> list = (List<ExtendsHbaseMap<Object>>) hbaseDao.previousPage(query);
@@ -250,17 +169,13 @@ public class HbaeDaoMapTest {
 
     @Test
     public void page() {
-        PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
-        query.setFamQuaes(ImmutableMap.of("cf1", new String[] { "age" }));
-        query.setMaxResultSize(0);
+        PageQueryBuilder query = PageQueryBuilder.newBuilder(1);
         printJson(hbaseDao.nextPage(query));
     }
 
     @Test
     public void count() {
-        PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
-        query.setFamQuaes(ImmutableMap.of("cf1", new String[] { "age" }));
-        query.setMaxResultSize(0);
+        PageQueryBuilder query = PageQueryBuilder.newBuilder(111);
         printJson("======================" + hbaseDao.count(query));
     }
 
@@ -268,20 +183,19 @@ public class HbaeDaoMapTest {
     @Test
     public void prefix() {
         //printJson(extendsHbaseDao1.prefix("name10", "name10", PAGE_SIZE));
-        printJson(hbaseDao.prefix("name10", PAGE_SIZE));
+        printJson(hbaseDao.prefix("2018", PAGE_SIZE));
     }
 
     @Test
     public void regexp() {
         //printJson(extendsHbaseDao1.regexp("^name.*1$", "name10", PAGE_SIZE));
-        printJson(hbaseDao.regexp("^name.*1$", 2));
+        printJson(hbaseDao.regexp("^20[0-1]{1}8.*1$", 20));
     }
 
     @Test
+    @Ignore
     public void delete() {
-        printJson(hbaseDao.get("ponfee1"));
-        printJson(hbaseDao.delete(new String[] { "ponfee1","ponfee2" }));
-        printJson(hbaseDao.get("ponfee2"));
+        printJson(hbaseDao.delete(Lists.newArrayList("20171231050359","20170922213037" )));
     }
 
     private static void printJson(Object obj) {

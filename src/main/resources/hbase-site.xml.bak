@@ -3,7 +3,6 @@
 <configuration>
   <property>
     <name>hbase.zookeeper.quorum</name>
-    <!-- <value>10.202.77.208,10.202.77.210,10.202.77.211,10.202.77.213</value> -->
     <value>10.202.34.200,10.202.34.201,10.202.34.202,10.202.34.203</value>
   </property>
   <property>

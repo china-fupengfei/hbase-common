@@ -19,6 +19,6 @@ public @interface HbaseTable {
     /** hbase table name, default LOWER_UNDERSCORE(Class.getSimpleName()) */
     String tableName() default "";
 
-    /** the class level family name for hbase */
+    /** the table level hbase family name */
     String family() default "";
 }

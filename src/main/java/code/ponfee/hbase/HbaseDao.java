@@ -1,9 +1,9 @@
 package code.ponfee.hbase;
 
-import static code.ponfee.hbase.model.HbaseMap.ROW_KEY_NAME;
-import static code.ponfee.hbase.model.HbaseMap.ROW_NUM_NAME;
 import static com.google.common.base.CaseFormat.LOWER_CAMEL;
 import static com.google.common.base.CaseFormat.LOWER_UNDERSCORE;
+import static code.ponfee.hbase.model.HbaseMap.ROW_KEY_NAME;
+import static code.ponfee.hbase.model.HbaseMap.ROW_NUM_NAME;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.commons.lang3.StringUtils.isNotEmpty;
@@ -11,14 +11,18 @@ import static org.apache.commons.lang3.StringUtils.substringBefore;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Map;
-import java.util.RandomAccess;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -43,7 +47,6 @@ import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.filter.CompareFilter;
@@ -66,13 +69,16 @@ import org.springframework.data.hadoop.hbase.RowMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 
 import code.ponfee.commons.cache.DateProvider;
+import code.ponfee.commons.collect.ByteArrayWrapper;
 import code.ponfee.commons.math.Numbers;
+import code.ponfee.commons.reflect.CglibUtils;
 import code.ponfee.commons.reflect.ClassUtils;
 import code.ponfee.commons.reflect.Fields;
 import code.ponfee.commons.reflect.GenericUtils;
-import code.ponfee.commons.util.Holder;
+import code.ponfee.commons.serial.Serializations;
 import code.ponfee.commons.util.ObjectUtils;
 import code.ponfee.commons.util.Strings;
 import code.ponfee.hbase.annotation.HbaseField;
@@ -87,28 +93,29 @@ import code.ponfee.hbase.model.PageSortOrder;
  * 
  * @author Ponfee
  */
-public abstract class HbaseDao<T> {
+public abstract class HbaseDao<T, R extends Serializable & Comparable<R>> {
 
     private static Logger logger = LoggerFactory.getLogger(HbaseDao.class);
 
-    private static final int REVERSE_THRESHOLD = 18;
-    //private static final DateProvider DATE_PROV = DateProvider.CURRENT;
+    //private static final DateProvider PROVIDER = DateProvider.CURRENT;
     private static final DateProvider PROVIDER = DateProvider.LATEST;
-    private static final byte[] EMPTY_BYTE_ARRAY = {};
+    private static final byte[] EMPTY_BYTE_ARRAY = {}; // new byte[0]
 
-    protected final Class<T> type;
+    protected final Class<T> classType;
+    protected final Class<R> rowKeyType;
     protected final ImmutableBiMap<String, Field> fieldMap;
     protected final String tableName;
     protected final String globalFamily;
     protected final List<byte[]> definedFamilies;
 
-    private @Resource HbaseTemplate template;
+    protected @Resource HbaseTemplate template;
 
+    @SuppressWarnings("unchecked")
     public HbaseDao() {
         Class<?> clazz = this.getClass();
-        this.type = GenericUtils.getActualTypeArgument(clazz);
-        if (   !HbaseEntity.class.isAssignableFrom(this.type)
-            && !HbaseMap.class.isAssignableFrom(this.type)
+        this.classType = GenericUtils.getActualTypeArgument(clazz, 0);
+        if (   !HbaseEntity.class.isAssignableFrom(this.classType)
+            && !HbaseMap.class.isAssignableFrom(this.classType)
         ) {
             throw new UnsupportedOperationException(
                 "The class generic type must be HbaseEntity or HbaseMap"
@@ -116,15 +123,16 @@ public abstract class HbaseDao<T> {
         }
 
         try {
-            type.getConstructor();
+            classType.getConstructor();
         } catch (NoSuchMethodException | SecurityException e) {
             throw new UnsupportedOperationException(
                 "The class " + clazz.getSimpleName() + " default constructor not found."
             );
         }
 
+        this.rowKeyType = GenericUtils.getActualTypeArgument(clazz, 1);
         this.fieldMap = ImmutableBiMap.<String, Field> builder().putAll(
-            ClassUtils.listFields(this.type).stream().collect(
+            ClassUtils.listFields(this.classType).stream().collect(
                 Collectors.toMap(f -> {
                     HbaseField hf = f.getAnnotation(HbaseField.class);
                     return (hf == null || isEmpty(hf.qualifier()))
@@ -135,10 +143,10 @@ public abstract class HbaseDao<T> {
         ).build();
 
         // table name
-        HbaseTable ht = this.type.getDeclaredAnnotation(HbaseTable.class);
+        HbaseTable ht = this.classType.getDeclaredAnnotation(HbaseTable.class);
         String tableName = (ht != null && isNotEmpty(ht.tableName())) 
                            ? ht.tableName()
-                           : LOWER_CAMEL.to(LOWER_UNDERSCORE, clazz.getSimpleName());
+                           : LOWER_CAMEL.to(LOWER_UNDERSCORE, clazz.getSimpleName()); // 类名的下划线表示
         this.tableName = buildTableName(ht.namespace(), tableName);
 
         // global family
@@ -151,27 +159,69 @@ public abstract class HbaseDao<T> {
         }
         this.fieldMap.values().stream().forEach(field -> {
             HbaseField hf = field.getDeclaredAnnotation(HbaseField.class);
-            if (hf != null && isNotEmpty(hf.family())) {
+            if (hf != null && isNotBlank(hf.family())) {
                 builder.add(toBytes(hf.family()));
             }
         });
         definedFamilies = builder.build();
     }
 
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    public <F> T convert(F from, Consumer<T> callback) {
+        T to;
+        if (this.classType.isInstance(from)) {
+            to = (T) from;
+        } else {
+            try {
+                to = this.classType.getConstructor().newInstance();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+
+            if (Map.class.isAssignableFrom(this.classType) && Map.class.isInstance(from)) {
+                ((Map) to).putAll((Map<?, ?>) from);
+            } else if (Map.class.isAssignableFrom(this.classType)) {
+                ((Map) to).putAll(ObjectUtils.bean2map(from));
+            } else if (Map.class.isInstance(from)) {
+                ObjectUtils.map2bean((Map) from, to);
+            } else {
+                CglibUtils.copyProperties(from, to);
+            }
+        }
+        if (callback != null) {
+            callback.accept(to);
+        }
+        return to;
+    }
+
+    public final <F> List<T> convert(List<F> from, Consumer<T> callback) {
+        if (from == null) {
+            return null;
+        } else if (from.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<T> list = new ArrayList<>(from.size());
+        for (F f : from) {
+            list.add(convert(f, callback));
+        }
+        return list;
+    }
+
     // ------------------------------------------------------------------config and connection
-    protected final Configuration getConfig() {
+    public final Configuration getConfig() {
         return template.getConfiguration();
     }
 
-    protected final Connection getConnection() throws IOException {
+    public final Connection getConnection() throws IOException {
         return ConnectionFactory.createConnection(getConfig());
     }
 
-    protected final Table getTable(Connection conn, String tableName) throws IOException {
-        return conn.getTable(TableName.valueOf(tableName));
+    public final Table getTable(String tableName) throws IOException {
+        return getConnection().getTable(TableName.valueOf(tableName));
     }
 
-    protected final void closeConnection(Connection conn) {
+    public final void closeConnection(Connection conn) {
         if (conn != null) try {
             conn.close();
         } catch (Exception e) {
@@ -179,7 +229,7 @@ public abstract class HbaseDao<T> {
         }
     }
 
-    protected final void closeTable(Table table) {
+    public final void closeTable(Table table) {
         if (table != null) try {
             table.close();
         } catch (Exception e) {
@@ -188,6 +238,29 @@ public abstract class HbaseDao<T> {
     }
 
     // ------------------------------------------------------------------admin operations
+    public boolean tableExists() {
+        return tableExists(null, this.tableName);
+    }
+
+    /**
+     * Returns the hbase table exists
+     * 
+     * @param namespace the namespace
+     * @param tableName the table name
+     * @return if {@code true} that table exists
+     */
+    public boolean tableExists(String namespace, String tableName) {
+        Preconditions.checkArgument(isNotEmpty(tableName));
+        try (Connection conn = getConnection();
+             Admin admin = conn.getAdmin()
+        ) {
+            return admin.tableExists(TableName.valueOf(buildTableName(namespace, tableName)));
+        } catch (IOException e) {
+            logger.error("Create hbase table {}:{} occur error.", namespace, tableName, e);
+            return false;
+        }
+    }
+
     public boolean createTable() {
         // this.tableName include namespace
         return createTable(null, this.tableName, definedFamilies);
@@ -270,7 +343,7 @@ public abstract class HbaseDao<T> {
         tableName = buildTableName(namespace, tableName);
         return template.execute(tableName, table -> {
             HTableDescriptor desc = table.getTableDescriptor();
-            List<String> result = new ArrayList<>();
+            List<String> result = new LinkedList<>();
             for (HColumnDescriptor hcd : desc.getColumnFamilies()) {
                 result.add(hcd.toString());
             }
@@ -331,7 +404,7 @@ public abstract class HbaseDao<T> {
      */
     public T get(String rowKey, String familyName, String qualifier) {
         return template.get(tableName, rowKey, familyName, 
-                            qualifier, rowMapper(rowKey, true));
+                            qualifier, rowMapper());
     }
 
     // ------------------------------------------------------------------find data list
@@ -369,6 +442,10 @@ public abstract class HbaseDao<T> {
     // ------------------------------------------------------------------rang with start and stop row key
     public List<T> range(String startRow, String stopRow) {
         return find(startRow, stopRow, 0, false);
+    }
+
+    public List<T> all() {
+        return find(null, null, 0, false);
     }
 
     // ------------------------------------------------------------------find by row key prefix
@@ -443,11 +520,6 @@ public abstract class HbaseDao<T> {
         return page(query, false, query.getSortOrder() == PageSortOrder.ASC);
     }
 
-    public long count(PageQueryBuilder query) {
-        query.setRowKeyOnly(true);
-        return count(query, 0);
-    }
-
     // ------------------------------------------------------------------get the last|first row
     public T first() {
         List<T> result = find(null, null, 1, false);
@@ -457,6 +529,42 @@ public abstract class HbaseDao<T> {
     public T last() {
         List<T> result = find(null, null, 1, true);
         return CollectionUtils.isEmpty(result) ? null : result.get(0);
+    }
+
+    /**
+     * Gets the next rowkey from start rowkey
+     * 
+     * @param rowKeyPrefix the key prefix
+     * @param startRowKey the start rowkey
+     * @return a next rowkey relatively start rowkey
+     */
+    public String nextRowKey(String rowKeyPrefix, String startRowKey) {
+        return (String) nearRowKey(rowKeyPrefix, startRowKey, true);
+    }
+
+    /**
+     * Gets the previous rowkey from start rowkey
+     * 
+     * @param rowKeyPrefix the key prefix
+     * @param startRowKey the start rowkey
+     * @return a previous rowkey relatively start rowkey
+     */
+    public String previousRowKey(String rowKeyPrefix, String startRowKey) {
+        return (String) nearRowKey(rowKeyPrefix, startRowKey, false);
+    }
+
+    /**
+     * Gets the previous rowkey from start rowkey
+     * 
+     * @param rowKeyPrefix the key prefix
+     * @param startRowKey the start rowkey
+     * @param paddingLength appending length start rowkey with 0xff
+     * @return a previous rowkey relatively start rowkey
+     */
+    public String previousRowKey(String rowKeyPrefix, String startRowKey, int paddingLength) {
+        byte[] startRowKeyBytes = HbaseHelper.paddingStopRowKey(startRowKey, paddingLength);
+        Object rowKey = nearRowKey(rowKeyPrefix, startRowKeyBytes, false);
+        return (rowKey instanceof String) ? (String) rowKey : startRowKey;
     }
 
     // ------------------------------------------------------------------put value into hbase
@@ -503,18 +611,16 @@ public abstract class HbaseDao<T> {
     }
 
     // ------------------------------------------------------------------batch put row data into hbase
-    @SuppressWarnings("unchecked")
     public boolean put(String tableName, String familyName, Map<String, Object> data) {
-        return put(tableName, familyName, new Map[] { data });
+        return put(tableName, familyName, Lists.newArrayList(data));
     }
 
-    @SuppressWarnings("unchecked")
-    public boolean put(String tableName, String familyName, Map<String, Object>... array) {
+    public boolean put(String tableName, String familyName, List<Map<String, Object>> list) {
         return template.execute(tableName, table -> {
             byte[] family = toBytes(familyName);
             long now = PROVIDER.now();
-            List<Put> batch = new ArrayList<>(array.length);
-            for (Map<String, Object> data : array) {
+            List<Put> batch = new ArrayList<>(list.size());
+            for (Map<String, Object> data : list) {
                 Put put = new Put(toBytes((String) data.get(ROW_KEY_NAME)));
                 data.entrySet().stream().filter(
                     e -> isNotEmpty(e.getKey()) && !ROW_KEY_NAME.equals(e.getKey())
@@ -530,24 +636,23 @@ public abstract class HbaseDao<T> {
     }
 
     // ------------------------------------------------------------------put batch data into hbase
-    @SuppressWarnings("unchecked")
-    public <V> boolean put(T... data) {
+    public boolean put(List<T> data) {
         return put(null, data);
     }
 
     @SuppressWarnings("unchecked")
-    public <V> boolean put(String familyName, T... data) {
-        if (ArrayUtils.isEmpty(data)) {
+    public <V> boolean put(String familyName, List<T> data) {
+        if (CollectionUtils.isEmpty(data)) {
             return false;
         }
 
         return template.execute(tableName, table -> {
-            List<Put> batch = new ArrayList<>(data.length);
+            List<Put> batch = new ArrayList<>(data.size());
             long now = PROVIDER.now();
             byte[] fam = toBytes(familyName);
             for (T obj : data) {
                 if (obj instanceof HbaseEntity) {
-                    HbaseEntity entity = (HbaseEntity) obj;
+                    HbaseEntity<R> entity = (HbaseEntity<R>) obj;
                     Put put = new Put(toBytes(entity.getRowKey()));
                     this.fieldMap.values().stream().forEach(field -> {
                         HbaseField hf = field.getDeclaredAnnotation(HbaseField.class);
@@ -563,7 +668,7 @@ public abstract class HbaseDao<T> {
                         batch.add(put);
                     }
                 } else if (obj instanceof HbaseMap) {
-                    HbaseMap<V> map = (HbaseMap<V>) obj;
+                    HbaseMap<V, R> map = (HbaseMap<V, R>) obj;
                     byte[] family = getFamily(fam, null, null);
                     if (family == null) {
                         throw new IllegalArgumentException("Family cannot be null.");
@@ -578,7 +683,7 @@ public abstract class HbaseDao<T> {
                         batch.add(put);
                     }
                 } else {
-                    throw new UnsupportedOperationException("Unsupported type: " + type.getCanonicalName());
+                    throw new UnsupportedOperationException("Unsupported type: " + classType.getCanonicalName());
                 }
             }
 
@@ -593,21 +698,21 @@ public abstract class HbaseDao<T> {
     }
 
     // ------------------------------------------------------------------delete data from hbase spec rowkey
-    public boolean delete(String[] rowKeys) {
+    public boolean delete(List<String> rowKeys) {
         return delete(tableName, rowKeys, null);
     }
 
-    public boolean deleteFamily(String[] rowKeys) {
+    public boolean deleteFamily(List<String> rowKeys) {
         return delete(tableName, rowKeys, definedFamilies);
     }
 
-    public boolean delete(String tableName, String[] rowKeys) {
+    public boolean delete(String tableName, List<String> rowKeys) {
         return delete(tableName, rowKeys, null);
     }
 
-    public boolean delete(String tableName, String[] rowKeys, List<byte[]> families) {
+    public boolean delete(String tableName, List<String> rowKeys, List<byte[]> families) {
         return template.execute(tableName, table -> {
-            List<Delete> batch = new ArrayList<>(rowKeys.length);
+            List<Delete> batch = new ArrayList<>(rowKeys.size());
             for (String rowKey : rowKeys) {
                 Delete delete = new Delete(Bytes.toBytes(rowKey));
                 if (families != null) {
@@ -620,86 +725,97 @@ public abstract class HbaseDao<T> {
         });
     }
 
+    // ------------------------------------------------------------------protected methods
+    @SuppressWarnings("unchecked")
+    protected <V> String getRowKeyAsString(T t) {
+        if (t == null) {
+            return null;
+        } else if (HbaseEntity.class.isAssignableFrom(this.classType)) {
+            return ((HbaseEntity<R>) t).getRowKeyAsString();
+        } else {
+            return ((HbaseMap<V, R>) t).getRowKeyAsString();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    protected <V> R getRowKey(T t) {
+        if (t == null) {
+            return null;
+        } else if (HbaseEntity.class.isAssignableFrom(this.classType)) {
+            return (R) ((HbaseEntity<R>) t).getRowKey();
+        } else {
+            return (R) ((HbaseMap<V, R>) t).getRowKey();
+        }
+    }
+
+    protected <V> byte[] getRowKeyAsBytes(T t) {
+        return toBytes(getRowKey(t));
+    }
+
     // ------------------------------------------------------------------private methods
-    private List<T> find(String startRow, String stopRow, int pageSize, boolean reversed, 
+    private Object nearRowKey(String rowKeyPrefix, Object startRowKey, boolean isNext) {
+        PageQueryBuilder query = PageQueryBuilder.newBuilder(1, PageSortOrder.ASC);
+        query.setRowKeyPrefix(rowKeyPrefix);
+        query.setStartRow(startRowKey);
+        List<T> result = isNext ? nextPage(query) : previousPage(query);
+        return CollectionUtils.isEmpty(result)
+               ? startRowKey : getRowKeyAsString(result.get(0));
+    }
+
+    private List<T> find(Object startRow, Object stopRow, int pageSize, boolean reversed, 
                          ScanHook scanHook, boolean inclusiveStartRow) {
         Scan scan = buildScan(startRow, stopRow, pageSize, reversed, scanHook);
-        List<T> result = template.find(tableName, scan, rowMapper(null, inclusiveStartRow));
-        if (CollectionUtils.isNotEmpty(result) && !inclusiveStartRow) {
-            result = result.subList(1, result.size());
+        List<T> result = template.find(tableName, scan, rowMapper());
+
+        // sort result
+        Comparator<R> c = reversed ? Comparator.reverseOrder() : Comparator.naturalOrder();
+        result.sort(Comparator.comparing(this::getRowKey, Comparator.nullsLast(c)));
+
+        if (CollectionUtils.isNotEmpty(result) && !inclusiveStartRow 
+            && Arrays.equals(toBytes(startRow), getRowKeyAsBytes(result.get(0)))) {
+            result = result.subList(1, result.size()); // first is the start row
         }
         return result;
     }
 
     private List<T> page(PageQueryBuilder query, boolean isNextPage, boolean reversed) {
-        List<T> result = find(query.getStartRow(), null, query.getActualPageSize(), 
+        List<T> result = find(query.getStartRow(), query.getStopRow(), query.getActualPageSize(), 
                               reversed, pageScanHook(query), query.isInclusiveStartRow());
+        if (CollectionUtils.isNotEmpty(result)) {
+            if (result.size() > query.getPageSize()) {
+                // the data from multiple region server 
+                result = result.subList(0, query.getPageSize());
+            }
 
-        if (!isNextPage && CollectionUtils.isNotEmpty(result)) {
-            //Collections.reverse(result);
-            int size = result.size();
-            if (size < REVERSE_THRESHOLD || result instanceof RandomAccess) {
-                for (int i = 0, mid = size >> 1, j = size - 1; i < mid; i++, j--) {
-                    swap(result, i, j);
-                }
-            } else {
-                ListIterator<T> fwd = result.listIterator();
-                ListIterator<T> rev = result.listIterator(size);
-                for (int i = 0, mid = result.size() >> 1; i < mid; i++) {
-                    T next = fwd.next();
-                    T prev = rev.previous();
-                    swapRowNum(next, prev);
-                    fwd.set(prev);
-                    rev.set(next);
+            if (!isNextPage) {
+                Collections.reverse(result); // previous page
+            }
+
+            if (query.isRequireRowNum()) {
+                for (int i = 0, n = result.size(); i < n; i++) {
+                    setRowNum(result.get(i), i);
                 }
             }
         }
         return result;
     }
 
-    private long count(PageQueryBuilder query, long total) {
-        Scan scan = buildScan(
-            query.getStartRow(), null, 
-            query.getActualPageSize(), 
-            false, pageScanHook(query)
-        );
-        scan.setCaching(2000);
-        scan.setCacheBlocks(false);
-
-        // others
-        int count = template.find(tableName, scan, results -> {
-            int number = 0;
-            Result last = null;
-            for (Result result : results) {
-                last = result;
-                number++;
-            }
-            if (number > 0 && !query.isInclusiveStartRow()) {
-                number -= 1;
-            }
-            if (last != null && !last.isEmpty() && number == query.getPageSize()) {
-                query.setStartRow(Bytes.toString(CellUtil.cloneRow(last.listCells().get(0))));
-            }
-            return number;
-        });
-
-        total += count;
-        return count < query.getPageSize() ? total : count(query, total);
-    }
-
-    private Scan buildScan(String startRow, String stopRow, int pageSize,
-                           boolean reversed, ScanHook scanHook) {
+    protected Scan buildScan(Object startRow, Object stopRow, int pageSize,
+                             boolean reversed, ScanHook scanHook) {
         Scan scan = new Scan();
         scan.setReversed(reversed);
-        if (isNotEmpty(startRow)) {
-            scan.setStartRow(toBytes(startRow));
+        byte[] startRowBytes = toBytes(startRow);
+        if (ArrayUtils.isNotEmpty(startRowBytes)) {
+            scan.setStartRow(startRowBytes);
         }
 
         scanHook.hook(scan);
 
         Filter filter = scan.getFilter();
-        if (isNotEmpty(stopRow) && !containsFilter(InclusiveStopFilter.class, filter)) {
-            scan.setStopRow(toBytes(stopRow));
+        byte[] stopRowBytes = toBytes(stopRow);
+        if (   ArrayUtils.isNotEmpty(stopRowBytes) 
+            && !containsFilter(InclusiveStopFilter.class, filter)) {
+            scan.setStopRow(stopRowBytes);
         }
 
         if (pageSize > 0) {
@@ -716,19 +832,24 @@ public abstract class HbaseDao<T> {
         return scan;
     }
 
-    private ScanHook pageScanHook(PageQueryBuilder query) {
+    protected ScanHook pageScanHook(PageQueryBuilder query) {
         return scan -> {
             // filters
             // 提取rowkey以01结尾数据： new RowFilter(CompareOp.EQUAL, new RegexStringComparator(".*01$"));
             // 提取rowkey以包含201407的数据：new RowFilter(CompareOp.EQUAL, new SubstringComparator("201407"));
             // 提取rowkey以123开头的数据：new RowFilter(CompareOp.EQUAL, new BinaryPrefixComparator("123".getBytes()));
             FilterList filters = new FilterList(Operator.MUST_PASS_ALL);
-            if (isNotEmpty(query.getRowKeyPrefix())) {
-                filters.addFilter(new PrefixFilter(toBytes(query.getRowKeyPrefix())));
+            byte[] rowKeyPrefixBytes = toBytes(query.getRowKeyPrefix());
+            if (ArrayUtils.isNotEmpty(rowKeyPrefixBytes)) {
+                filters.addFilter(new PrefixFilter(rowKeyPrefixBytes));
             }
             if (isNotEmpty(query.getRowKeyRegexp())) {
                 RegexStringComparator regexp = new RegexStringComparator(query.getRowKeyRegexp());
                 filters.addFilter(new RowFilter(CompareOp.EQUAL, regexp));
+            }
+            byte[] stopRowBytes = toBytes(query.getStopRow());
+            if (ArrayUtils.isNotEmpty(stopRowBytes) && query.isInclusiveStopRow()) {
+                filters.addFilter(new InclusiveStopFilter(stopRowBytes));
             }
 
             // query column
@@ -750,6 +871,8 @@ public abstract class HbaseDao<T> {
             }
 
             scan.setFilter(filters);
+            //scan.setCacheBlocks(false);
+            //scan.setCaching(0);
 
             // others
             if (query.getMaxResultSize() > -1) {
@@ -763,49 +886,31 @@ public abstract class HbaseDao<T> {
     }
 
     @SuppressWarnings("unchecked")
-    private RowMapper<T> rowMapper(String rowKey, boolean inclusiveStartRow) {
+    private RowMapper<T> rowMapper() {
         return (result, rowNum) -> {
-            if (result.isEmpty() || (rowNum == 0 && !inclusiveStartRow)) {
+            if (result.isEmpty()) {
                 return null;
             }
 
-            int rowNum0 = inclusiveStartRow ? rowNum : rowNum - 1;
-            Holder<Boolean> isSetRowKey = Holder.of(false);
-            Object model = type.newInstance();
-            if (HbaseEntity.class.isAssignableFrom(type)) {
-                HbaseEntity entity = (HbaseEntity) model;
-                Fields.put(entity, ROW_NUM_NAME, rowNum0);
-                if (rowKey != null) {
-                    Fields.put(entity, ROW_KEY_NAME, rowKey);
-                    isSetRowKey.set(true);
-                }
+            Object model = classType.newInstance();
+            if (HbaseEntity.class.isAssignableFrom(classType)) {
+                HbaseEntity<R> entity = (HbaseEntity<R>) model;
+                setRowKey(entity, result.getRow());
                 result.listCells().stream().forEach(cell -> {
-                    if (!isSetRowKey.get()) {
-                        Fields.put(entity, ROW_KEY_NAME, Bytes.toString(CellUtil.cloneRow(cell)));
-                        isSetRowKey.set(true);
-                    }
                     // CellUtil.cloneFamily(cell), cell.getTimestamp(), cell.getSequenceId()
                     setValue(entity, Bytes.toString(CellUtil.cloneQualifier(cell)), CellUtil.cloneValue(cell));
                 });
                 return (T) entity;
-            } else if (HbaseMap.class.isAssignableFrom(type)) {
-                Map<String, Object> map = (HbaseMap<Object>) model;
-                map.put(ROW_NUM_NAME, rowNum0);
-                if (rowKey != null) {
-                    map.put(ROW_KEY_NAME, rowKey);
-                    isSetRowKey.set(true);
-                }
+            } else if (HbaseMap.class.isAssignableFrom(classType)) {
+                HbaseMap<Object, R> map = (HbaseMap<Object, R>) model;
+                setRowKey(map, result.getRow());
                 result.listCells().stream().forEach(cell -> {
-                    if (!isSetRowKey.get()) {
-                        map.put(ROW_KEY_NAME, Bytes.toString(CellUtil.cloneRow(cell)));
-                        isSetRowKey.set(true);
-                    }
                     map.put(Bytes.toString(CellUtil.cloneQualifier(cell)), 
                             Bytes.toString(CellUtil.cloneValue(cell)));
                 });
                 return (T) map;
             } else {
-                throw new UnsupportedOperationException("Unsupported type: " + type.getCanonicalName());
+                throw new UnsupportedOperationException("Unsupported type: " + classType.getCanonicalName());
             }
         };
     }
@@ -819,19 +924,17 @@ public abstract class HbaseDao<T> {
      * @return a family name of hbase
      */
     private byte[] getFamily(byte[] family, HbaseField hf, Field field) {
-        if (ArrayUtils.isNotEmpty(family)) { // first spec level family
+        if (ArrayUtils.isNotEmpty(family)) {
             return family;
-        }
-        if (hf != null && isNotEmpty(hf.family())) { // second field level family
+        } else if (hf != null && isNotEmpty(hf.family())) {
             return toBytes(hf.family());
-        }
-        if (!definedFamilies.isEmpty()) { // third global level family
+        } else if (!definedFamilies.isEmpty()) {
             return definedFamilies.get(0);
-        }
-        if (field != null) { // least filed name level family
+        } else if (field != null) {
             return toBytes(LOWER_CAMEL.to(LOWER_UNDERSCORE, field.getName()));
+        } else {
+            return null;
         }
-        return null;
     }
 
     private byte[] getQualifier(Field field) {
@@ -840,6 +943,36 @@ public abstract class HbaseDao<T> {
             qualifier = LOWER_CAMEL.to(LOWER_UNDERSCORE, field.getName());
         }
         return toBytes(qualifier);
+    }
+
+    private void setRowKey(HbaseEntity<R> entity, byte[] rowKey) {
+        entity.setRowKey(convertRowKey(rowKey));
+    }
+
+    @SuppressWarnings("unchecked")
+    private <V> void setRowKey(HbaseMap<V, R> map, byte[] rowKey) {
+        map.put(ROW_KEY_NAME, (V) (convertRowKey(rowKey)));
+    }
+
+    @SuppressWarnings("unchecked")
+    private R convertRowKey(byte[] rowKey) {
+        R key;
+        if (rowKey == null) {
+            key = null;
+        } else if (this.rowKeyType.equals(byte[].class)) {
+            key = (R) ((Object) rowKey);
+        } else if (this.rowKeyType.equals(String.class)) {
+            key = (R) Bytes.toString((byte[]) rowKey);
+        } else if (this.rowKeyType.equals(ByteArrayWrapper.class)) {
+            key = (R) new ByteArrayWrapper((byte[]) rowKey);
+        } else {
+            try {
+                key = (R) this.rowKeyType.getConstructor(byte[].class).newInstance(rowKey);
+            } catch (Exception e) {
+                key = (R) Serializations.deserialize((byte[]) rowKey, this.rowKeyType);
+            }
+        }
+        return key;
     }
 
     private void setValue(Object target, String qualifier, byte[] value) {
@@ -854,7 +987,7 @@ public abstract class HbaseDao<T> {
 
         HbaseField hf = field.getDeclaredAnnotation(HbaseField.class);
         if (hf != null && hf.serial()) {
-            Fields.put(target, field, ObjectUtils.deserialize(value, field.getType()));
+            Fields.put(target, field, Serializations.deserialize(value, field.getType()));
         } else if (   hf != null && ArrayUtils.isNotEmpty(hf.format()) 
                    && Date.class.isAssignableFrom(field.getType())
         ) {
@@ -887,70 +1020,67 @@ public abstract class HbaseDao<T> {
     private static <E extends Filter> boolean containsFilter(Class<E> type, Filter filter) {
         if (filter == null) {
             return false;
-        }
-        if (!(filter instanceof FilterList)) {
+        } else if (!(filter instanceof FilterList)) {
             return type.isInstance(filter);
+        } else {
+            return ((FilterList) filter).getFilters().stream()
+                                        .anyMatch(f -> type.isInstance(f));
         }
-        return ((FilterList) filter).getFilters().stream()
-                                    .anyMatch(f -> type.isInstance(f));
     }
 
     private static byte[] toBytes(String str) {
         if (str == null) {
             return null;
-        }
-        if (isEmpty(str)) {
+        } else if (isEmpty(str)) {
             return EMPTY_BYTE_ARRAY;
+        } else {
+            return Bytes.toBytes(str);
         }
-        return Bytes.toBytes(str);
     }
 
-    private static byte[] toBytes(Object obj) {
+    protected static byte[] toBytes(Object obj) {
         if (obj == null) {
             return null;
-        }
-        if (obj instanceof byte[]) {
+        } else if (obj instanceof byte[]) {
             return (byte[]) obj;
-        }
-        if (obj instanceof Byte[]) {
-            ArrayUtils.toPrimitive((Byte[]) obj);
-        }
-        if (obj instanceof InputStream) {
+        } else if (obj instanceof Byte[]) {
+            return ArrayUtils.toPrimitive((Byte[]) obj);
+        } else if (obj instanceof ByteArrayWrapper) {
+            return ((ByteArrayWrapper) obj).getArray();
+        } else if (obj instanceof InputStream) {
             try (InputStream input = (InputStream) obj) {
                 return IOUtils.toByteArray(input);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
+        } else {
+            String str;
+            if (isEmpty(str = obj.toString())) {
+                return EMPTY_BYTE_ARRAY;
+            }
+            return Bytes.toBytes(str);
         }
-        String str;
-        if (isEmpty(str = obj.toString())) {
-            return EMPTY_BYTE_ARRAY;
-        }
-        return Bytes.toBytes(str);
     }
 
     private static byte[] getValue(Object target, Field field, HbaseField hf) {
         Object value = Fields.get(target, field);
         if (value == null) {
             return null;
-        }
-        if (hf != null && hf.serial()) {
-            return ObjectUtils.serialize(value);
-        }
-        if (hf == null || ArrayUtils.isEmpty(hf.format())) {
+        } else if (hf != null && hf.serial()) {
+            return Serializations.serialize(value);
+        } else if (hf == null || ArrayUtils.isEmpty(hf.format())) {
             return toBytes(value.toString());
-        }
-
-        // HbaseField meta
-        if (Date.class.isInstance(value)) {
+        } else if (Date.class.isInstance(value)) {
+            // HbaseField meta
             if (hf.format().length == 1
                 && HbaseField.FORMAT_TIMESTAMP.equalsIgnoreCase(hf.format()[0])) {
                 return toBytes(Long.toString(((Date) value).getTime()));
             } else {
                 return toBytes(FastDateFormat.getInstance(hf.format()[0]).format(value));
             }
+        } else {
+            return toBytes(value.toString());
         }
-        return toBytes(value.toString());
     }
 
     private static String buildTableName(String namespace, String tableName) {
@@ -958,27 +1088,13 @@ public abstract class HbaseDao<T> {
                ? namespace + ":" + tableName : tableName;
     }
 
-    private static <T> void swap(List<T> list, int i, int j) {
-        T t1 = list.get(i);
-        swapRowNum(t1, list.get(j));
-        list.set(i, list.set(j, t1));
-    }
-
     @SuppressWarnings("unchecked")
-    private static <T> void swapRowNum(T t1, T t2) {
-        int rowNum1;
-        if (t1 instanceof HbaseEntity) {
-            HbaseEntity h1 = (HbaseEntity) t1;
-            HbaseEntity h2 = (HbaseEntity) t2;
-            rowNum1 = h1.getRowNum();
-            h1.setRowNum(h2.getRowNum());
-            h2.setRowNum(rowNum1);
+    private static <T, R extends Serializable & Comparable<R>> void 
+        setRowNum(T t, int rowNum) {
+        if (t instanceof HbaseEntity) {
+            ((HbaseEntity<R>) t).setRowNum(rowNum);
         } else {
-            Map<String, Object> m1 = (Map<String, Object>) t1;
-            Map<String, Object> m2 = (Map<String, Object>) t2;
-            rowNum1 = (int) m1.get(ROW_NUM_NAME);
-            m1.put(ROW_NUM_NAME, m2.get(ROW_NUM_NAME));
-            m2.put(ROW_NUM_NAME, rowNum1);
+            ((Map<String, Object>) t).put(ROW_NUM_NAME, rowNum);
         }
     }
 
