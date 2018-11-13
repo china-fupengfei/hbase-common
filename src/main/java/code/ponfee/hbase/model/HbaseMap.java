@@ -13,7 +13,7 @@ import org.apache.commons.lang3.builder.HashCodeBuilder;
  * 
  * @author Ponfee
  */
-public abstract class HbaseMap<V, R extends Serializable & Comparable<R>>
+public abstract class HbaseMap<V, R extends Serializable & Comparable<? super R>>
     extends HashMap<String, V> implements Comparable<HbaseMap<V, R>> {
 
     private static final long serialVersionUID = 2482090979352032846L;

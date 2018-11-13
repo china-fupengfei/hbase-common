@@ -14,7 +14,7 @@ import code.ponfee.hbase.annotation.HbaseField;
  * 
  * @author Ponfee
  */
-public abstract class HbaseEntity<R extends Serializable & Comparable<R>>
+public abstract class HbaseEntity<R extends Serializable & Comparable<? super R>>
     implements Serializable, Comparable<HbaseEntity<R>> {
 
     private static final long serialVersionUID = 2467942701509706341L;
