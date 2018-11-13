@@ -3,7 +3,7 @@ package code.ponfee.hbase.annotation;
 import java.lang.annotation.*;
 
 /**
- * Mapping the hbase table name
+ * Mapped by hbase table name
  * 
  * @author Ponfee
  */

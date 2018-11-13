@@ -29,7 +29,7 @@
        hbase.client.operation.timeout=120000
        hbase.client.scanner.timeout.period=300000
        hbase.client.pause=1000
-       hbase.client.retries.number=30
+       hbase.client.retries.number=15
        hbase.client.write.buffer=52428800
        zookeeper.session.timeout=60000
     </hdp:configuration>

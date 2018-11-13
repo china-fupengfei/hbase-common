@@ -19,7 +19,7 @@ public class PageQueryBuilder {
     private final int pageSize;
     private final PageSortOrder sortOrder;
 
-    private boolean requireRowNum = true; // 是否包含行号
+    private boolean requireRowNum = true; // is include row number
 
     private Object startRow;
     private Boolean inclusiveStartRow;
@@ -28,7 +28,7 @@ public class PageQueryBuilder {
 
     private Object rowKeyPrefix;
 
-    private String rowKeyRegexp; // 正则：只支持字符串
+    private String rowKeyRegexp; // regexp: only support string
 
     private Map<String, String[]> famQuaes;
     private int maxResultSize = -1;

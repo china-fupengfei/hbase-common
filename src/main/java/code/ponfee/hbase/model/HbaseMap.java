@@ -9,7 +9,7 @@ import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 /**
- * Class HbaseMap mapping for hbase table
+ * Class HbaseMap mapped by hbase table
  * 
  * @author Ponfee
  */

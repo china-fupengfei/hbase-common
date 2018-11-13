@@ -99,7 +99,6 @@ public abstract class HbaseDao<T, R extends Serializable & Comparable<R>> {
 
     //private static final DateProvider PROVIDER = DateProvider.CURRENT;
     private static final DateProvider PROVIDER = DateProvider.LATEST;
-    private static final byte[] EMPTY_BYTE_ARRAY = {}; // new byte[0]
 
     protected final Class<T> classType;
     protected final Class<R> rowKeyType;
@@ -1032,7 +1031,7 @@ public abstract class HbaseDao<T, R extends Serializable & Comparable<R>> {
         if (str == null) {
             return null;
         } else if (isEmpty(str)) {
-            return EMPTY_BYTE_ARRAY;
+            return code.ponfee.commons.util.Bytes.EMPTY_BYTES;
         } else {
             return Bytes.toBytes(str);
         }
@@ -1056,7 +1055,7 @@ public abstract class HbaseDao<T, R extends Serializable & Comparable<R>> {
         } else {
             String str;
             if (isEmpty(str = obj.toString())) {
-                return EMPTY_BYTE_ARRAY;
+                return code.ponfee.commons.util.Bytes.EMPTY_BYTES;
             }
             return Bytes.toBytes(str);
         }
