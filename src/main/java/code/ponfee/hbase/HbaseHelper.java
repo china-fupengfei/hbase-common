@@ -47,7 +47,8 @@ public class HbaseHelper {
         return paddingRowKey(rowKeyPrefix, paddingLength, (byte) 0xFF);
     }
 
-    private static byte[] paddingRowKey(String rowKeyPrefix, int paddingLength, byte padding) {
+    private static byte[] paddingRowKey(String rowKeyPrefix, 
+                                        int paddingLength, byte padding) {
         byte[] rowKeyBytes = Bytes.toBytes(rowKeyPrefix);
         int fromIndex = rowKeyBytes.length;
         int toIndex = fromIndex + paddingLength;

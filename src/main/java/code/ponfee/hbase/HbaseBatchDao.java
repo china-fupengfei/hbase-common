@@ -127,8 +127,8 @@ public abstract class HbaseBatchDao<T, R extends Serializable & Comparable<R>>
         int round = 0;
         for (int from = 0, to, n = data.size(); from < n; from += batchSize) {
             logger.info("==================Put at round {}==================", round);
-            to = Integer.min(from + batchSize, n);
-            
+            to = Math.min(from + batchSize, n);
+
             service.submit(new AsnycBatchPut<>(this, data.subList(from, to)));
             round++;
         }
@@ -217,6 +217,7 @@ public abstract class HbaseBatchDao<T, R extends Serializable & Comparable<R>>
         }
         return result;
     }
+
     /**
      * 异步批量删除
      */
