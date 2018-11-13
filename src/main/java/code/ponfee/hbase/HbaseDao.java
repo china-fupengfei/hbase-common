@@ -104,7 +104,7 @@ public abstract class HbaseDao<T, R extends Serializable & Comparable<R>> {
     protected final Class<R> rowKeyType;
     protected final ImmutableBiMap<String, Field> fieldMap;
     protected final String tableName;
-    protected final String globalFamily;
+    protected final String globalFamily; // table(class)-level family name
     protected final List<byte[]> definedFamilies;
 
     protected @Resource HbaseTemplate template;
@@ -166,7 +166,7 @@ public abstract class HbaseDao<T, R extends Serializable & Comparable<R>> {
     }
 
     @SuppressWarnings({ "unchecked", "rawtypes" })
-    public <F> T convert(F from, Consumer<T> callback) {
+    public <F> T convert(F from, Consumer<T> action) {
         T to;
         if (this.classType.isInstance(from)) {
             to = (T) from;
@@ -187,24 +187,22 @@ public abstract class HbaseDao<T, R extends Serializable & Comparable<R>> {
                 CglibUtils.copyProperties(from, to);
             }
         }
-        if (callback != null) {
-            callback.accept(to);
+        if (action != null) {
+            action.accept(to);
         }
         return to;
     }
 
-    public final <F> List<T> convert(List<F> from, Consumer<T> callback) {
+    public final <F> List<T> convert(List<F> from, Consumer<T> action) {
         if (from == null) {
             return null;
         } else if (from.isEmpty()) {
             return Collections.emptyList();
         }
 
-        List<T> list = new ArrayList<>(from.size());
-        for (F f : from) {
-            list.add(convert(f, callback));
-        }
-        return list;
+        return from.stream().map(
+            f -> convert(f, action)
+        ).collect(Collectors.toList());
     }
 
     // ------------------------------------------------------------------config and connection

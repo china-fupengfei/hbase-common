@@ -8,6 +8,8 @@ import org.apache.commons.lang3.builder.CompareToBuilder;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
+import code.ponfee.commons.math.Numbers;
+
 /**
  * Class HbaseMap mapped by hbase table
  * 
@@ -29,10 +31,15 @@ public abstract class HbaseMap<V, R extends Serializable & Comparable<? super R>
     }
 
     @SuppressWarnings("unchecked")
-    public R getRowKey() {
+    public final R getRowKey() {
         return (R) this.get(ROW_KEY_NAME);
     }
 
+    /**
+     * Sub class can override this method
+     * 
+     * @return row key as string
+     */
     public @Transient String getRowKeyAsString() {
         R rowKey = getRowKey();
         return rowKey == null ? null : rowKey.toString();
@@ -44,11 +51,8 @@ public abstract class HbaseMap<V, R extends Serializable & Comparable<? super R>
             return 0;
         } else if (rowNum instanceof Number) {
             return ((Number) rowNum).intValue();
-        }
-        try {
-            return Integer.parseInt(rowNum.toString());
-        } catch (NumberFormatException ignored) {
-            return 0;
+        } else {
+            return Numbers.toInt(rowNum);
         }
     }
 

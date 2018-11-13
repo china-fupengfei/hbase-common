@@ -125,12 +125,10 @@ public abstract class HbaseBatchDao<T, R extends Serializable & Comparable<R>>
     public boolean put(List<T> data, int batchSize, ThreadPoolExecutor threadPoolExecutor) {
         CompletionService<Boolean> service = new ExecutorCompletionService<>(threadPoolExecutor);
         int round = 0;
-        for (int from = 0, to, n = data.size(); from < n; from += batchSize) {
+        for (int from = 0, to, n = data.size(); from < n; from += batchSize, round++) {
             logger.info("==================Put at round {}==================", round);
             to = Math.min(from + batchSize, n);
-
             service.submit(new AsnycBatchPut<>(this, data.subList(from, to)));
-            round++;
         }
 
         return join(service, round, "put");
@@ -138,9 +136,8 @@ public abstract class HbaseBatchDao<T, R extends Serializable & Comparable<R>>
 
     // ------------------------------------------------------------------------query all
     public <E> void scrollQuery(PageQueryBuilder query, BiConsumer<Integer, List<T>> consumer) {
-        int pageNum = 0, size;
         query.setRequireRowNum(false);
-        List<T> page;
+        int pageNum = 0, size; List<T> page;
         do {
             page = this.nextPage(query);
             size = page == null ? 0 : page.size();
