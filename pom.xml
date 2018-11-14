@@ -10,7 +10,7 @@
   <name>hbase-common</name>
 
   <properties>
-    <hadoop.version>2.7.3</hadoop.version>
+    <hadoop.version>2.9.1</hadoop.version>
     <spring.version>4.3.18.RELEASE</spring.version>
   </properties>
 
