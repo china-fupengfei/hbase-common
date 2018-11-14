@@ -51,7 +51,7 @@ public class CopyOrderInfoTest {
 
     @Test
     public void get() {
-        printJson(copyHbaseDao.get("4_MEIZU_20160401_S1603290008630_03.21.3211102-T"));
+        printJson(copyHbaseDao.get("abc"));
     }
 
     @Test
@@ -71,7 +71,7 @@ public class CopyOrderInfoTest {
 
     @Test
     public void find() {
-        printJson(copyHbaseDao.find("4_MEIZU_20160401_S1603290008630_03.21.3211102-T", 20));
+        printJson(copyHbaseDao.find("abc", 20));
     }
 
     @Test
@@ -86,7 +86,7 @@ public class CopyOrderInfoTest {
             data.addAll(list);
             printJson(list);
             printJson((String) query.nextPageStartRow(list).getRowKey());
-            query.setStartRow((String) query.nextPageStartRow(list).getRowKey());
+            query.setStartRowKey((String) query.nextPageStartRow(list).getRowKey());
             list = (List<CopyOrderInfo>) copyHbaseDao.nextPage(query);
         }
         if (CollectionUtils.isNotEmpty(list)) {
@@ -109,9 +109,9 @@ public class CopyOrderInfoTest {
     @Test
     public void copy() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
-        query.setRowKeyPrefix("4_MEIZU_");
-        query.setStartRow("4_MEIZU_20160401_S1603310002862_03.21.3213102-T", true);
-        query.setStopRow("4_MEIZU_20160401_S1603310004352_03.21.3211104-W");
+        query.setRowKeyPrefix("a");
+        query.setStartRowKey("a20160401_S1603310002862_03.21.3213102-T", true);
+        query.setStopRowKey("a20160401_S1603310004352_03.21.3211104-W");
         basHbaseDao.copy(query, copyHbaseDao, t -> {
             t.setModelId(1);
             t.buildRowKey();
@@ -121,11 +121,11 @@ public class CopyOrderInfoTest {
     @Test
     public void copy2() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
-        query.setRowKeyPrefix("4_MEIZU_");
-        String startRow = basHbaseDao.nextRowKey("4_MEIZU_", "4_MEIZU_20160401_"); // 可以直接写4_MEIZU_20160401_
-        String stopRow = basHbaseDao.previousRowKey("4_MEIZU_", "4_MEIZU_20160403_");
-        query.setStartRow(startRow, true);
-        query.setStopRow(stopRow);
+        query.setRowKeyPrefix("a");
+        String startRow = basHbaseDao.nextRowKey("a", "a20160401_"); // 可以直接写a20160401_
+        String stopRow = basHbaseDao.previousRowKey("a", "a20160403_");
+        query.setStartRowKey(startRow, true);
+        query.setStopRowKey(stopRow);
         basHbaseDao.copy(query, copyHbaseDao, t -> {
             t.setModelId(1);
             t.buildRowKey();
@@ -134,29 +134,29 @@ public class CopyOrderInfoTest {
 
     @Test
     public void nextRowKey() {
-        // 4_MEIZU_20160401_S1603290008630_03.21.3211102-T
-        printJson(basHbaseDao.nextRowKey("4_MEIZU_", "4_MEIZU_20160401_"));
+        // abc
+        printJson(basHbaseDao.nextRowKey("a", "a20160401_"));
     }
 
     @Test
     public void previousRowKey() {
-        // 4_MEIZU_20160402_S1604050001672_03.24.3241104-P
-        printJson(basHbaseDao.previousRowKey("4_MEIZU_", "4_MEIZU_20160403_"));
+        // a20160402_S1604050001672_03.24.3241104-P
+        printJson(basHbaseDao.previousRowKey("a", "a20160403_"));
 
-        // 4_MEIZU_20180926_S1809260015952_07.07.7705017
-        printJson(basHbaseDao.previousRowKey("4_MEIZU_", "4_MEIZU_20360403_"));
+        // a20180926_S1809260015952_07.07.7705017
+        printJson(basHbaseDao.previousRowKey("a", "a20360403_"));
     }
 
     @Test
     public void previousRowKey2() {
-        // 4_MEIZU_20160402_S1604050001672_03.24.3241104-P
-        printJson(basHbaseDao.previousRowKey("4_MEIZU_", "4_MEIZU_20160402_", 50));
+        // a20160402_S1604050001672_03.24.3241104-P
+        printJson(basHbaseDao.previousRowKey("a", "a20160402_", 50));
 
-        // 4_MEIZU_20180926_S1809260015952_07.07.7705017
-        printJson(basHbaseDao.previousRowKey("4_MEIZU_", "4_MEIZU_20460400_", 50));
+        // a20180926_S1809260015952_07.07.7705017
+        printJson(basHbaseDao.previousRowKey("a", "a20460400_", 50));
 
-        // 4_MEIZU_20000402_
-        printJson(basHbaseDao.previousRowKey("4_MEIZU_", "4_MEIZU_20000402_", 50));
+        // a20000402_
+        printJson(basHbaseDao.previousRowKey("a", "a20000402_", 50));
     }
 
     @Test
@@ -164,7 +164,7 @@ public class CopyOrderInfoTest {
         // 6_57095810-6_20180926_CK2018092691_JXJ605060038
         printJson(basHbaseDao.previousRowKey(null, null));
 
-        printJson(basHbaseDao.previousRowKey("4_MEIZU_", null)); // 全表扫描
+        printJson(basHbaseDao.previousRowKey("a", null)); // 全表扫描
     }
 
     // -------------------------------------------------------------------------------

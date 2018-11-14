@@ -32,7 +32,8 @@ public abstract class HbaseEntity<R extends Serializable & Comparable<? super R>
     protected int timestamp;*/
 
     /**
-     * Returns the data object hbase rowkey
+     * Returns the data object hbase rowkey, 
+     * sub class can override this methods
      * 
      * @return a rowkey
      */
@@ -40,6 +41,11 @@ public abstract class HbaseEntity<R extends Serializable & Comparable<? super R>
         return this.getRowKey();
     }
 
+    /**
+     * Sub class can override this method
+     * 
+     * @return row key as string
+     */
     public @Transient String getRowKeyAsString() {
         return rowKey == null ? null : rowKey.toString();
     }
@@ -48,12 +54,12 @@ public abstract class HbaseEntity<R extends Serializable & Comparable<? super R>
         return rowKey;
     }
 
-    public void setRowKey(R rowKey) {
-        this.rowKey = rowKey;
-    }
-
     public int getRowNum() {
         return rowNum;
+    }
+
+    public void setRowKey(R rowKey) {
+        this.rowKey = rowKey;
     }
 
     public void setRowNum(int rowNum) {

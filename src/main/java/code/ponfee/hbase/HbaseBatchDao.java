@@ -14,7 +14,7 @@ import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -58,12 +58,12 @@ public abstract class HbaseBatchDao<T, R extends Serializable & Comparable<R>>
      * @return a long is the data count
      */
     public long count(PageQueryBuilder query) {
-        AtomicLong total = new AtomicLong(0);
+        LongAdder count = new LongAdder();
         scrollProcess(query, "Count", rowKeys -> {
-            total.addAndGet((long) rowKeys.size());
+            count.add(rowKeys.size());
             rowKeys.clear();
         });
-        return total.get();
+        return count.sum();
     }
 
     // ------------------------------------------------------------------------batch delete
@@ -125,10 +125,11 @@ public abstract class HbaseBatchDao<T, R extends Serializable & Comparable<R>>
     public boolean put(List<T> data, int batchSize, ThreadPoolExecutor threadPoolExecutor) {
         CompletionService<Boolean> service = new ExecutorCompletionService<>(threadPoolExecutor);
         int round = 0;
-        for (int from = 0, to, n = data.size(); from < n; from += batchSize, round++) {
+        for (int from = 0, to, n = data.size(); from < n; from += batchSize) {
             logger.info("==================Put at round {}==================", round);
             to = Math.min(from + batchSize, n);
             service.submit(new AsnycBatchPut<>(this, data.subList(from, to)));
+            round++;
         }
 
         return join(service, round, "put");
@@ -142,7 +143,7 @@ public abstract class HbaseBatchDao<T, R extends Serializable & Comparable<R>>
             page = this.nextPage(query);
             size = page == null ? 0 : page.size();
             if (size > 0) {
-                query.setStartRow(super.getRowKey(query.nextPageStartRow(page)), false);
+                query.setStartRowKey(super.getRowKey(query.nextPageStartRow(page)), false);
                 consumer.accept(++pageNum, page);
             }
             logger.info("==================Scroll Query at round {}==================", pageNum);
@@ -160,12 +161,11 @@ public abstract class HbaseBatchDao<T, R extends Serializable & Comparable<R>>
     private void scrollProcess(PageQueryBuilder query, String name, 
                                Consumer<List<ByteArrayWrapper>> callback) {
         query.setRowKeyOnly(true);
-        List<ByteArrayWrapper> rowKeys;
-        int count, round = 0;
+        int count, round = 0; List<ByteArrayWrapper> rowKeys;
         do {
-            logger.info("==================" + name + " at round {}==================", round++);
+            logger.info("=================={} at round {}==================", name, round++);
             Scan scan = buildScan(
-                query.getStartRow(), query.getStopRow(), 
+                query.getStartRowKey(), query.getStopRowKey(), 
                 query.getActualPageSize(), false, pageScanHook(query)
             );
             //scan.setCaching(2000);
@@ -189,7 +189,7 @@ public abstract class HbaseBatchDao<T, R extends Serializable & Comparable<R>>
 
             count = rowKeys.size();
             if (count > 0) {
-                query.setStartRow(nextStartRowKey(rowKeys.get(rowKeys.size() - 1).getArray()), true);
+                query.setStartRowKey(nextStartRowKey(rowKeys.get(rowKeys.size() - 1).getArray()), true);
                 callback.accept(rowKeys);
             }
         } while (count >= query.getPageSize()); // maybe has next page
@@ -209,7 +209,7 @@ public abstract class HbaseBatchDao<T, R extends Serializable & Comparable<R>>
                 }
             }
         } catch (InterruptedException | ExecutionException e) {
-            logger.error("Batch " + operation + " occur error", e);
+            logger.error("Batch {} occur error", operation, e);
             result = false;
         }
         return result;
@@ -246,7 +246,8 @@ public abstract class HbaseBatchDao<T, R extends Serializable & Comparable<R>>
 
     /**
      * 异步批量增加（修改）数据
-     * @param <>
+     * @param <E>
+     * @param <U>
      */
     private static final class AsnycBatchPut<E, U extends Serializable & Comparable<U>> 
         implements Callable<Boolean> {

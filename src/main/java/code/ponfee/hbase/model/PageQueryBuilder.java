@@ -19,11 +19,11 @@ public class PageQueryBuilder {
     private final int pageSize;
     private final PageSortOrder sortOrder;
 
-    private boolean requireRowNum = true; // is include row number
+    private boolean requireRowNum = true; // whether include row number
 
-    private Object startRow;
+    private Object startRowKey;
     private Boolean inclusiveStartRow;
-    private Object stopRow;
+    private Object stopRowKey;
     private Boolean inclusiveStopRow;
 
     private Object rowKeyPrefix;
@@ -54,25 +54,25 @@ public class PageQueryBuilder {
         return new PageQueryBuilder(pageSize, sortOrder);
     }
 
-    public void setStartRow(Object startRow) {
-        this.setStartRow(startRow, null);
+    public void setStartRowKey(Object startRowKey) {
+        this.setStartRowKey(startRowKey, null);
     }
 
-    public void setStartRow(Object startRow, Boolean inclusiveStartRow) {
-        this.startRow = startRow;
+    public void setStartRowKey(Object startRowKey, Boolean inclusiveStartRow) {
+        this.startRowKey = startRowKey;
         this.inclusiveStartRow = inclusiveStartRow;
     }
 
-    public void setStopRow(Object stopRow) {
-        this.setStopRow(stopRow, null);
+    public void setStopRowKey(Object stopRowKey) {
+        this.setStopRowKey(stopRowKey, null);
     }
 
     public void setRequireRowNum(boolean requireRowNum) {
         this.requireRowNum = requireRowNum;
     }
 
-    public void setStopRow(Object stopRow, Boolean inclusiveStopRow) {
-        this.stopRow = stopRow;
+    public void setStopRowKey(Object stopRowKey, Boolean inclusiveStopRow) {
+        this.stopRowKey = stopRowKey;
         this.inclusiveStopRow = inclusiveStopRow;
     }
 
@@ -105,12 +105,12 @@ public class PageQueryBuilder {
         return isInclusiveStartRow() ? pageSize : pageSize + 1;
     }
 
-    public Object getStartRow() {
-        return startRow;
+    public Object getStartRowKey() {
+        return startRowKey;
     }
 
-    public Object getStopRow() {
-        return stopRow;
+    public Object getStopRowKey() {
+        return stopRowKey;
     }
 
     public Object getRowKeyPrefix() {
@@ -142,7 +142,7 @@ public class PageQueryBuilder {
     }
 
     public boolean isInclusiveStartRow() {
-        return ObjectUtils.orElse(inclusiveStartRow, ObjectUtils.isEmpty(startRow));
+        return ObjectUtils.orElse(inclusiveStartRow, ObjectUtils.isEmpty(startRowKey));
     }
 
     public Boolean isInclusiveStopRow() {

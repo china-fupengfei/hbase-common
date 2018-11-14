@@ -57,7 +57,7 @@ public class BasOrderInfoTest {
 
     @Test
     public void get() {
-        printJson(hbaseDao.get("4_MEIZU_20160401_S1603290008630_03.21.3211102-T"));
+        printJson(hbaseDao.get("abc"));
     }
 
     @Test
@@ -72,12 +72,12 @@ public class BasOrderInfoTest {
 
     @Test
     public void range() {
-        printJson(hbaseDao.range("4_MEIZU_20160401_S1603310002862_03.21.3213102-T", "4_MEIZU_20160401_S1603310004352_03.21.3211104-W"));
+        printJson(hbaseDao.range("abc", "def"));
     }
 
     @Test
     public void find() {
-        printJson(hbaseDao.find("4_MEIZU_20160401_S1603290008630_03.21.3211102-T", 20));
+        printJson(hbaseDao.find("abc", 20));
     }
 
     @Test
@@ -98,7 +98,7 @@ public class BasOrderInfoTest {
             data.addAll(list);
             printJson(list);
             printJson((String) query.nextPageStartRow(list).getRowKey());
-            query.setStartRow((String) query.nextPageStartRow(list).getRowKey());
+            query.setStartRowKey((String) query.nextPageStartRow(list).getRowKey());
             list = (List<BasOrderInfo>) hbaseDao.nextPage(query);
         }
         if (CollectionUtils.isNotEmpty(list)) {
@@ -124,7 +124,7 @@ public class BasOrderInfoTest {
             data.addAll(list);
             printJson(list);
             printJson((String) query.nextPageStartRow(list).getRowKey());
-            query.setStartRow((String) query.nextPageStartRow(list).getRowKey());
+            query.setStartRowKey((String) query.nextPageStartRow(list).getRowKey());
             list = (List<BasOrderInfo>) hbaseDao.nextPage(query);
         }
         if (CollectionUtils.isNotEmpty(list)) {
@@ -141,14 +141,14 @@ public class BasOrderInfoTest {
     @Test
     public void previousPage() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
-        query.setStartRow("name85");
+        query.setStartRowKey("name85");
         printJson(hbaseDao.previousPage(query));
     }
     
     @Test
     public void previousPageDesc() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE, PageSortOrder.DESC);
-        query.setStartRow("name85");
+        query.setStartRowKey("name85");
         printJson(hbaseDao.previousPage(query));
     }
 
@@ -156,7 +156,7 @@ public class BasOrderInfoTest {
     public void previousPageAll() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
         query.setFamQuaes(ImmutableMap.of("cf1", new String[] { "name" }));
-        query.setStartRow("ponfee2");
+        query.setStartRowKey("ponfee2");
         List<BasOrderInfo> data = new ArrayList<>();
         int count = 1;
         List<BasOrderInfo> list = (List<BasOrderInfo>) hbaseDao.previousPage(query);
@@ -165,7 +165,7 @@ public class BasOrderInfoTest {
             data.addAll(list);
             printJson(list);
             printJson((String) query.previousPageStartRow(list).getRowKey());
-            query.setStartRow((String) query.previousPageStartRow(list).getRowKey());
+            query.setStartRowKey((String) query.previousPageStartRow(list).getRowKey());
             list = (List<BasOrderInfo>) hbaseDao.previousPage(query);
         }
         if (CollectionUtils.isNotEmpty(list)) {
@@ -183,7 +183,7 @@ public class BasOrderInfoTest {
     public void previousPageAllDesc() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE, PageSortOrder.DESC);
         query.setFamQuaes(ImmutableMap.of("cf1", new String[] { "name" }));
-        query.setStartRow("name10");
+        query.setStartRowKey("name10");
         List<BasOrderInfo> data = new ArrayList<>();
         int count = 1;
         List<BasOrderInfo> list = (List<BasOrderInfo>) hbaseDao.previousPage(query);
@@ -192,7 +192,7 @@ public class BasOrderInfoTest {
             data.addAll(list);
             printJson(list);
             printJson((String) query.previousPageStartRow(list).getRowKey());
-            query.setStartRow((String) query.previousPageStartRow(list).getRowKey());
+            query.setStartRowKey((String) query.previousPageStartRow(list).getRowKey());
             list = (List<BasOrderInfo>) hbaseDao.previousPage(query);
         }
         if (CollectionUtils.isNotEmpty(list)) {
@@ -217,7 +217,7 @@ public class BasOrderInfoTest {
     @Test
     public void prefix() {
         //printJson(extendsHbaseDao1.prefix("name10", "name10", PAGE_SIZE));
-        printJson(hbaseDao.prefix("4_MEIZU_20160401_", PAGE_SIZE));
+        printJson(hbaseDao.prefix("ab_", PAGE_SIZE));
     }
 
     @Test
@@ -227,9 +227,9 @@ public class BasOrderInfoTest {
 
     @Test
     public void delete() {
-        printJson(hbaseDao.get("4_MEIZU_20160401_S1603310004352_03.21.3211104-W"));
-        printJson(hbaseDao.delete(Lists.newArrayList("4_MEIZU_20160401_S1603310004352_03.21.3211104-W")));
-        printJson(hbaseDao.get("4_MEIZU_20160401_S1603310004352_03.21.3211104-W"));
+        printJson(hbaseDao.get("abc"));
+        printJson(hbaseDao.delete(Lists.newArrayList("def")));
+        printJson(hbaseDao.get("abc"));
     }
 
     private static void printJson(Object obj) {

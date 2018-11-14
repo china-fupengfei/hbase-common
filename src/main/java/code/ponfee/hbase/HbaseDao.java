@@ -80,7 +80,6 @@ import code.ponfee.commons.reflect.Fields;
 import code.ponfee.commons.reflect.GenericUtils;
 import code.ponfee.commons.serial.Serializations;
 import code.ponfee.commons.util.ObjectUtils;
-import code.ponfee.commons.util.Strings;
 import code.ponfee.hbase.annotation.HbaseField;
 import code.ponfee.hbase.annotation.HbaseTable;
 import code.ponfee.hbase.model.HbaseEntity;
@@ -106,6 +105,7 @@ public abstract class HbaseDao<T, R extends Serializable & Comparable<R>> {
     protected final String tableName;
     protected final String globalFamily; // table(class)-level family name
     protected final List<byte[]> definedFamilies;
+    protected final boolean serialRowKey;
 
     protected @Resource HbaseTemplate template;
 
@@ -147,6 +147,8 @@ public abstract class HbaseDao<T, R extends Serializable & Comparable<R>> {
                            ? ht.tableName()
                            : LOWER_CAMEL.to(LOWER_UNDERSCORE, clazz.getSimpleName()); // 类名的下划线表示
         this.tableName = buildTableName(ht.namespace(), tableName);
+
+        this.serialRowKey = ht == null ? false : ht.serialRowKey();
 
         // global family
         this.globalFamily = (ht != null && isNotBlank(ht.family())) ? ht.family() : null;
@@ -650,7 +652,7 @@ public abstract class HbaseDao<T, R extends Serializable & Comparable<R>> {
             for (T obj : data) {
                 if (obj instanceof HbaseEntity) {
                     HbaseEntity<R> entity = (HbaseEntity<R>) obj;
-                    Put put = new Put(toBytes(entity.getRowKey()));
+                    Put put = new Put(serialRowKey(entity.getRowKey()));
                     this.fieldMap.values().stream().forEach(field -> {
                         HbaseField hf = field.getDeclaredAnnotation(HbaseField.class);
                         if (hf != null && hf.ignore()) { // 忽略的字段
@@ -670,7 +672,7 @@ public abstract class HbaseDao<T, R extends Serializable & Comparable<R>> {
                     if (family == null) {
                         throw new IllegalArgumentException("Family cannot be null.");
                     }
-                    Put put = new Put(toBytes(map.get(ROW_KEY_NAME)));
+                    Put put = new Put(serialRowKey(map.getRowKey()));
                     map.entrySet().stream().filter(
                         e -> isNotEmpty(e.getKey()) && !ROW_KEY_NAME.equals(e.getKey())
                     ).forEach(entry -> {
@@ -753,7 +755,7 @@ public abstract class HbaseDao<T, R extends Serializable & Comparable<R>> {
     private Object nearRowKey(String rowKeyPrefix, Object startRowKey, boolean isNext) {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(1, PageSortOrder.ASC);
         query.setRowKeyPrefix(rowKeyPrefix);
-        query.setStartRow(startRowKey);
+        query.setStartRowKey(startRowKey);
         List<T> result = isNext ? nextPage(query) : previousPage(query);
         return CollectionUtils.isEmpty(result)
                ? startRowKey : getRowKeyAsString(result.get(0));
@@ -776,8 +778,9 @@ public abstract class HbaseDao<T, R extends Serializable & Comparable<R>> {
     }
 
     private List<T> page(PageQueryBuilder query, boolean isNextPage, boolean reversed) {
-        List<T> result = find(query.getStartRow(), query.getStopRow(), query.getActualPageSize(), 
-                              reversed, pageScanHook(query), query.isInclusiveStartRow());
+        List<T> result = find(query.getStartRowKey(), query.getStopRowKey(), 
+                              query.getActualPageSize(), reversed, 
+                              pageScanHook(query), query.isInclusiveStartRow());
         if (CollectionUtils.isNotEmpty(result)) {
             if (result.size() > query.getPageSize()) {
                 // the data from multiple region server 
@@ -844,7 +847,7 @@ public abstract class HbaseDao<T, R extends Serializable & Comparable<R>> {
                 RegexStringComparator regexp = new RegexStringComparator(query.getRowKeyRegexp());
                 filters.addFilter(new RowFilter(CompareOp.EQUAL, regexp));
             }
-            byte[] stopRowBytes = toBytes(query.getStopRow());
+            byte[] stopRowBytes = toBytes(query.getStopRowKey());
             if (ArrayUtils.isNotEmpty(stopRowBytes) && query.isInclusiveStopRow()) {
                 filters.addFilter(new InclusiveStopFilter(stopRowBytes));
             }
@@ -943,33 +946,44 @@ public abstract class HbaseDao<T, R extends Serializable & Comparable<R>> {
     }
 
     private void setRowKey(HbaseEntity<R> entity, byte[] rowKey) {
-        entity.setRowKey(convertRowKey(rowKey));
+        entity.setRowKey(deserialRowKey(rowKey));
     }
 
     @SuppressWarnings("unchecked")
     private <V> void setRowKey(HbaseMap<V, R> map, byte[] rowKey) {
-        map.put(ROW_KEY_NAME, (V) (convertRowKey(rowKey)));
+        map.put(ROW_KEY_NAME, (V) (deserialRowKey(rowKey)));
     }
 
     @SuppressWarnings("unchecked")
-    private R convertRowKey(byte[] rowKey) {
+    private R deserialRowKey(byte[] rowKey) {
         R key;
         if (rowKey == null) {
             key = null;
+        } else if (serialRowKey) {
+            key = (R) Serializations.deserialize(rowKey, this.rowKeyType);
         } else if (this.rowKeyType.equals(byte[].class)) {
             key = (R) ((Object) rowKey);
         } else if (this.rowKeyType.equals(String.class)) {
-            key = (R) Bytes.toString((byte[]) rowKey);
+            key = (R) Bytes.toString(rowKey);
         } else if (this.rowKeyType.equals(ByteArrayWrapper.class)) {
-            key = (R) new ByteArrayWrapper((byte[]) rowKey);
+            key = (R) new ByteArrayWrapper(rowKey);
         } else {
             try {
                 key = (R) this.rowKeyType.getConstructor(byte[].class).newInstance(rowKey);
             } catch (Exception e) {
-                key = (R) Serializations.deserialize((byte[]) rowKey, this.rowKeyType);
+                // first to string, then convert to target type
+                key = (R) ObjectUtils.convert(Bytes.toString(rowKey), this.rowKeyType);
             }
         }
         return key;
+    }
+
+    protected byte[] serialRowKey(R rowKey) {
+        if (serialRowKey) {
+            return Serializations.serialize(rowKey);
+        } else {
+            return toBytes(rowKey);
+        }
     }
 
     private void setValue(Object target, String qualifier, byte[] value) {
@@ -989,21 +1003,21 @@ public abstract class HbaseDao<T, R extends Serializable & Comparable<R>> {
                    && Date.class.isAssignableFrom(field.getType())
         ) {
             Date date;
-            String str = Bytes.toString(value);
+            String str = Bytes.toString(value); // first to string
             if (hf.format().length == 1 
                 && HbaseField.FORMAT_TIMESTAMP.equalsIgnoreCase(hf.format()[0])) {
-                date = new Date(Numbers.toLong(str));
+                date = new Date(Numbers.toLong(str)); // timestamp
             } else {
                 try {
-                    date = DateUtils.parseDate(str, hf.format());
+                    date = DateUtils.parseDate(str, hf.format()); // date format
                 } catch (ParseException e) {
                     throw new RuntimeException("Invalid date format: " + str);
                 }
             }
             Fields.put(target, field, date);
         } else {
-            String str = Bytes.toString(value);
-            if (field.getType().isPrimitive() && Strings.isEmpty(str)) {
+            String str = Bytes.toString(value); // first to string
+            if (field.getType().isPrimitive() && isEmpty(str)) {
                 return;
             }
             try {
@@ -1052,7 +1066,7 @@ public abstract class HbaseDao<T, R extends Serializable & Comparable<R>> {
             }
         } else {
             String str;
-            if (isEmpty(str = obj.toString())) {
+            if (isEmpty(str = obj.toString())) { // first to string then to byte array
                 return code.ponfee.commons.util.Bytes.EMPTY_BYTES;
             }
             return Bytes.toBytes(str);
@@ -1065,18 +1079,18 @@ public abstract class HbaseDao<T, R extends Serializable & Comparable<R>> {
             return null;
         } else if (hf != null && hf.serial()) {
             return Serializations.serialize(value);
-        } else if (hf == null || ArrayUtils.isEmpty(hf.format())) {
-            return toBytes(value.toString());
-        } else if (Date.class.isInstance(value)) {
-            // HbaseField meta
+        } else if ( hf != null && ArrayUtils.isNotEmpty(hf.format()) 
+                 && Date.class.isInstance(value)
+        ) {
+            // HbaseField meta data
             if (hf.format().length == 1
                 && HbaseField.FORMAT_TIMESTAMP.equalsIgnoreCase(hf.format()[0])) {
-                return toBytes(Long.toString(((Date) value).getTime()));
+                return toBytes(Long.toString(((Date) value).getTime())); // timestamp string as byte array
             } else {
                 return toBytes(FastDateFormat.getInstance(hf.format()[0]).format(value));
             }
         } else {
-            return toBytes(value.toString());
+            return toBytes(value.toString()); // to string as byte array
         }
     }
 

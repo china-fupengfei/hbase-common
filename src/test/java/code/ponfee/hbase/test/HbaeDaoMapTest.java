@@ -113,7 +113,7 @@ public class HbaeDaoMapTest {
     @Test
     public void nextPageAll() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(111, PageSortOrder.ASC);
-        query.setStartRow("00000000");
+        query.setStartRowKey("00000000");
         //query.setRowKeyPrefix("fu_ponfee_2009");
         //Set<String> set = new TreeSet<>();
         Set<String> set = new LinkedHashSet<>();
@@ -129,14 +129,14 @@ public class HbaeDaoMapTest {
     @Test
     public void previousPage() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
-        query.setStartRow("20050828085930");
+        query.setStartRowKey("20050828085930");
         printJson(hbaseDao.previousPage(query));
     }
     
     @Test
     public void previousPageDesc() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE, PageSortOrder.DESC);
-        query.setStartRow("20050828085930");
+        query.setStartRowKey("20050828085930");
         printJson(hbaseDao.previousPage(query));
     }
 
@@ -144,7 +144,7 @@ public class HbaeDaoMapTest {
     public void previousPageAll() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(111);
         query.setFamQuaes(ImmutableMap.of("cf1", new String[] { "name" }));
-        query.setStartRow("20181004162958");
+        query.setStartRowKey("20181004162958");
         List<ExtendsHbaseMap<Object>> data = new ArrayList<>();
         int count = 1;
         List<ExtendsHbaseMap<Object>> list = (List<ExtendsHbaseMap<Object>>) hbaseDao.previousPage(query);
@@ -153,7 +153,7 @@ public class HbaeDaoMapTest {
             data.addAll(list);
             printJson(list);
             printJson((String) query.previousPageStartRow(list).get(ROW_KEY_NAME));
-            query.setStartRow((String) query.previousPageStartRow(list).get(ROW_KEY_NAME));
+            query.setStartRowKey((String) query.previousPageStartRow(list).get(ROW_KEY_NAME));
             list = (List<ExtendsHbaseMap<Object>>) hbaseDao.previousPage(query);
         }
         if (CollectionUtils.isNotEmpty(list)) {

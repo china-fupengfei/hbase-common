@@ -16,10 +16,10 @@ public @interface HbaseField {
     /** ignore as hbase qualifier */
     boolean ignore() default false;
 
-    /** serial object */
+    /** whether serial field value */
     boolean serial() default false;
 
-    /** the column level hbase family name. */
+    /** the column-level hbase family name. */
     String family() default "";
 
     /** the hbase qualifier name. */

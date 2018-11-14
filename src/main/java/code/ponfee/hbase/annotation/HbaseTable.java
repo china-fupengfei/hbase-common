@@ -19,6 +19,9 @@ public @interface HbaseTable {
     /** hbase table name, default LOWER_UNDERSCORE(Class.getSimpleName()) */
     String tableName() default "";
 
-    /** the table level hbase family name */
+    /** the table-level hbase family name */
     String family() default "";
+
+    /** whether serial row key */
+    boolean serialRowKey() default false;
 }

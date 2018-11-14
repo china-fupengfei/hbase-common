@@ -26,13 +26,14 @@ public abstract class HbaseMap<V, R extends Serializable & Comparable<? super R>
     //public static final String TIMESTAMP_NAME = "timestamp";
     //public static final String SEQUENCE_ID_NAME = "sequenceId";
 
+    /**
+     * Returns the data object hbase rowkey, 
+     * sub class can override this methods
+     * 
+     * @return a rowkey
+     */
     public R buildRowKey() {
         return this.getRowKey();
-    }
-
-    @SuppressWarnings("unchecked")
-    public final R getRowKey() {
-        return (R) this.get(ROW_KEY_NAME);
     }
 
     /**
@@ -43,6 +44,11 @@ public abstract class HbaseMap<V, R extends Serializable & Comparable<? super R>
     public @Transient String getRowKeyAsString() {
         R rowKey = getRowKey();
         return rowKey == null ? null : rowKey.toString();
+    }
+
+    @SuppressWarnings("unchecked")
+    public final R getRowKey() {
+        return (R) this.get(ROW_KEY_NAME);
     }
 
     public final int getRowNum() {

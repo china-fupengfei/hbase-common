@@ -116,7 +116,7 @@ public class HbaeDaoEntityTest {
     public void nextPage() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(5, PageSortOrder.ASC);
         //query.setRowKeyPrefix("fu_ponfee_2009");
-        query.setStartRow("fu_ponfee_20070309");
+        query.setStartRowKey("fu_ponfee_20070309");
         printJson(hbaseDao.nextPage(query));
     }
 
@@ -139,7 +139,7 @@ public class HbaeDaoEntityTest {
     @Test
     public void previousPage() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(5, PageSortOrder.DESC);
-        query.setStartRow("fu_ponfee_20121019");
+        query.setStartRowKey("fu_ponfee_20121019");
         printJson(hbaseDao.previousPage(query));
     }
 
@@ -156,7 +156,7 @@ public class HbaeDaoEntityTest {
             data.addAll(list);
             printJson(list);
             printJson((String) query.previousPageStartRow(list).getRowKey());
-            query.setStartRow((String) query.previousPageStartRow(list).getRowKey());
+            query.setStartRowKey((String) query.previousPageStartRow(list).getRowKey());
             list = (List<ExtendsHbaseEntity>) hbaseDao.previousPage(query);
         }
         if (CollectionUtils.isNotEmpty(list)) {
