@@ -1,16 +1,36 @@
 package code.ponfee.hbase.model;
 
+import static org.apache.hadoop.hbase.util.Bytes.toBytes;
+
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang.ArrayUtils;
+import org.apache.hadoop.hbase.filter.BinaryComparator;
+import org.apache.hadoop.hbase.filter.BinaryPrefixComparator;
+import org.apache.hadoop.hbase.filter.CompareFilter.CompareOp;
+import org.apache.hadoop.hbase.filter.Filter;
+import org.apache.hadoop.hbase.filter.FilterList;
+import org.apache.hadoop.hbase.filter.FilterList.Operator;
+import org.apache.hadoop.hbase.filter.FirstKeyOnlyFilter;
+import org.apache.hadoop.hbase.filter.RegexStringComparator;
+import org.apache.hadoop.hbase.filter.RowFilter;
+import org.apache.hadoop.hbase.filter.SingleColumnValueFilter;
+import org.apache.hadoop.hbase.filter.SubstringComparator;
+import org.springframework.util.Assert;
 
 import com.google.common.base.Preconditions;
 
+import code.ponfee.commons.collect.Collects;
+import code.ponfee.commons.util.Bytes;
 import code.ponfee.commons.util.ObjectUtils;
 
 /**
  * Page query for hbase
+ * 
+ * hbase filter: {@linkplain https://blog.csdn.net/cnweike/article/details/42920547}
  * 
  * @author Ponfee
  */
@@ -19,20 +39,17 @@ public class PageQueryBuilder {
     private final int pageSize;
     private final PageSortOrder sortOrder;
 
-    private boolean requireRowNum = true; // whether include row number
-
     private Object startRowKey;
     private Boolean inclusiveStartRow;
     private Object stopRowKey;
     private Boolean inclusiveStopRow;
 
-    private Object rowKeyPrefix;
+    private Map<String, String[]> famQuaes; // query the spec family and qualifier
+    private final FilterList filters = new FilterList(Operator.MUST_PASS_ALL);
 
-    private String rowKeyRegexp; // regexp: only support string
+    //private int maxResultSize = -1;
 
-    private Map<String, String[]> famQuaes;
-    private int maxResultSize = -1;
-    private boolean rowKeyOnly = false;
+    private boolean requireRowNum = true; // whether include row number
 
     private PageQueryBuilder(int pageSize, PageSortOrder sortOrder) {
         Preconditions.checkArgument(
@@ -54,99 +71,231 @@ public class PageQueryBuilder {
         return new PageQueryBuilder(pageSize, sortOrder);
     }
 
-    public void setStartRowKey(Object startRowKey) {
-        this.setStartRowKey(startRowKey, null);
+    public void startRowKey(Object startRowKey) {
+        this.startRowKey(startRowKey, null);
     }
 
-    public void setStartRowKey(Object startRowKey, Boolean inclusiveStartRow) {
+    public void startRowKey(Object startRowKey, Boolean inclusiveStartRow) {
         this.startRowKey = startRowKey;
         this.inclusiveStartRow = inclusiveStartRow;
     }
 
-    public void setStopRowKey(Object stopRowKey) {
-        this.setStopRowKey(stopRowKey, null);
+    public void stopRowKey(Object stopRowKey) {
+        this.stopRowKey(stopRowKey, null);
     }
 
-    public void setRequireRowNum(boolean requireRowNum) {
+    public void requireRowNum(boolean requireRowNum) {
         this.requireRowNum = requireRowNum;
     }
 
-    public void setStopRowKey(Object stopRowKey, Boolean inclusiveStopRow) {
+    public void stopRowKey(Object stopRowKey, Boolean inclusiveStopRow) {
         this.stopRowKey = stopRowKey;
         this.inclusiveStopRow = inclusiveStopRow;
     }
 
-    public void setRowKeyRegexp(String rowKeyRegexp) {
-        this.rowKeyRegexp = rowKeyRegexp;
+    public void addColumns(String family, String... qualifiers) {
+        Assert.notEmpty(qualifiers, "Qualifiers cannot be empty.");
+        if (famQuaes == null) {
+            famQuaes = new HashMap<>();
+        }
+        String[] qs = famQuaes.get(family);
+        qs = ArrayUtils.isEmpty(qs) ? qualifiers 
+             : Collects.concat(String[]::new, qs, qualifiers);
+        famQuaes.put(family, qs);
     }
 
-    public void setRowKeyPrefix(Object rowKeyPrefix) {
-        this.rowKeyPrefix = rowKeyPrefix;
+    // ----------------------------------------------------------------query conditions
+    public PageQueryBuilder equals(String family, String qualifier, byte[] value) {
+        this.filters.addFilter(equals(family, qualifier, value, true));
+        return this;
     }
 
-    public void setFamQuaes(Map<String, String[]> famQuaes) {
-        this.famQuaes = famQuaes;
+    public PageQueryBuilder notEquals(String family, String qualifier, byte[] value) {
+        this.filters.addFilter(equals(family, qualifier, value, false));
+        return this;
     }
 
-    public void setMaxResultSize(int maxResultSize) {
-        this.maxResultSize = maxResultSize;
+    public <T> PageQueryBuilder in(String family, String qualifier, byte[]... values) {
+        FilterList filters = new FilterList(FilterList.Operator.MUST_PASS_ONE);
+        for (byte[] value : values) {
+            filters.addFilter(equals(family, qualifier, value, true));
+        }
+        this.filters.addFilter(filters);
+        return this;
     }
 
-    public void setRowKeyOnly(boolean rowKeyOnly) {
-        this.rowKeyOnly = rowKeyOnly;
+    public PageQueryBuilder notIn(String family, String qualifier, byte[]... values) {
+        FilterList filters = new FilterList(FilterList.Operator.MUST_PASS_ALL);
+        for (byte[] value : values) {
+            filters.addFilter(equals(family, qualifier, value, false));
+        }
+        this.filters.addFilter(filters);
+        return this;
+    }
+
+    public PageQueryBuilder exists(String family, String qualifier) {
+        // must not be empty value
+        SingleColumnValueFilter filter = equals(family, qualifier, Bytes.EMPTY_BYTES, false);
+        filter.setFilterIfMissing(true); // 若该列不存在，则过滤掉
+        this.filters.addFilter(filter);
+        return this;
+    }
+
+    public PageQueryBuilder notExists(String family, String qualifier) {
+        // must be empty value
+        SingleColumnValueFilter filter = equals(family, qualifier, Bytes.EMPTY_BYTES, true);
+        filter.setFilterIfMissing(false); // 若该列不存在也会包含在结果集中
+        this.filters.addFilter(filter);
+        return this;
+    }
+
+    public PageQueryBuilder greater(String family, String qualifier,
+                                    byte[] min, boolean inclusive) {
+        this.filters.addFilter(greater0(family, qualifier, min, inclusive));
+        return this;
+    }
+
+    public PageQueryBuilder less(String family, String qualifier,
+                                 byte[] max, boolean inclusive) {
+        this.filters.addFilter(less0(family, qualifier, max, inclusive));
+        return this;
+    }
+
+    public PageQueryBuilder range(String family, String qualifier, 
+                                  byte[] min, boolean inclusiveMin,
+                                  byte[] max, boolean inclusiveMax) {
+        this.filters.addFilter(greater0(family, qualifier, min, inclusiveMin));
+        this.filters.addFilter(less0(family, qualifier, max, inclusiveMax));
+        return this;
+    }
+
+    public PageQueryBuilder notRange(String family, String qualifier,
+                                     byte[] min, boolean inclusiveMin,
+                                     byte[] max, boolean inclusiveMax) {
+        FilterList filters = new FilterList(FilterList.Operator.MUST_PASS_ONE);
+        filters.addFilter(less0(family, qualifier, min, !inclusiveMin)); // <(=) min
+        filters.addFilter(greater0(family, qualifier, max, !inclusiveMax)); // >(=) max
+        this.filters.addFilter(filters);
+        return this;
+    }
+
+    public PageQueryBuilder regexp(String family, String qualifier, String regexp) {
+        this.filters.addFilter(regexp(family, qualifier, regexp, true));
+        return this;
+    }
+
+    public PageQueryBuilder notRegexp(String family, String qualifier, String regexp) {
+        this.filters.addFilter(regexp(family, qualifier, regexp, false));
+        return this;
+    }
+
+    public PageQueryBuilder prefix(String family, String qualifier, byte[] prefix) {
+        this.filters.addFilter(prefix(family, qualifier, prefix, true));
+        return this;
+    }
+
+    public PageQueryBuilder notPrefix(String family, String qualifier, byte[] prefix) {
+        this.filters.addFilter(prefix(family, qualifier, prefix, false));
+        return this;
+    }
+
+    public PageQueryBuilder like(String family, String qualifier, String wildcard) {
+        this.filters.addFilter(like(family, qualifier, wildcard, true));
+        return this;
+    }
+
+    public PageQueryBuilder notLike(String family, String qualifier, String wildcard) {
+        this.filters.addFilter(like(family, qualifier, wildcard, false));
+        return this;
+    }
+
+    // ------------------------------------------------------------row key filter
+    public PageQueryBuilder rowKeyOnly() {
+        // origin: {"name":"pUqnw","rowKey":"20181004162958","age":"3"}
+        this.filters.addFilter(new FirstKeyOnlyFilter()); // {"rowKey":"20181004162958","age":"3"}
+        //this.filters.addFilter(new KeyOnlyFilter()); // {"name":"","rowKey":"20181004162958","age":""}
+        return this;
+    }
+
+    public PageQueryBuilder likeRowKey(String keyword) {
+        this.filters.addFilter(likeKey(keyword, true));
+        return this;
+    }
+
+    public PageQueryBuilder notLikeRowKey(String keyword) {
+        this.filters.addFilter(likeKey(keyword, false));
+        return this;
+    }
+
+    public PageQueryBuilder regexpRowKey(String rowKeyRegexp) {
+        this.filters.addFilter(regexpKey(rowKeyRegexp, true));
+        return this;
+    }
+
+    public PageQueryBuilder notRegexpRowKey(String rowKeyRegexp) {
+        this.filters.addFilter(regexpKey(rowKeyRegexp, false));
+        return this;
+    }
+
+    public PageQueryBuilder prefixRowKey(byte[] prefixKey) {
+        this.filters.addFilter(prefixKey(prefixKey, true));
+        return this;
+    }
+
+    public PageQueryBuilder notPrefixRowKey(byte[] prefixKey) {
+        this.filters.addFilter(prefixKey(prefixKey, false));
+        return this;
+    }
+
+    public PageQueryBuilder equalsRowKey(byte[] rowKey) {
+        this.filters.addFilter(equalsKey(rowKey, true));
+        return this;
+    }
+
+    public PageQueryBuilder notEqualsRowKey(byte[] rowKey) {
+        this.filters.addFilter(equalsKey(rowKey, false));
+        return this;
     }
 
     // ---------------------------------------------------------getter
-    public int getPageSize() {
+    public int pageSize() {
         return pageSize;
     }
 
-    public int getActualPageSize() {
-        return isInclusiveStartRow() ? pageSize : pageSize + 1;
+    public int actualPageSize() {
+        return inclusiveStartRow() ? pageSize : pageSize + 1;
     }
 
-    public Object getStartRowKey() {
+    public Object startRowKey() {
         return startRowKey;
     }
 
-    public Object getStopRowKey() {
+    public Object stopRowKey() {
         return stopRowKey;
     }
 
-    public Object getRowKeyPrefix() {
-        return rowKeyPrefix;
-    }
-
-    public String getRowKeyRegexp() {
-        return rowKeyRegexp;
-    }
-
-    public Map<String, String[]> getFamQuaes() {
+    public Map<String, String[]> famQuaes() {
         return famQuaes;
     }
 
-    public int getMaxResultSize() {
-        return maxResultSize;
-    }
-
-    public boolean isRowKeyOnly() {
-        return rowKeyOnly;
-    }
-
-    public boolean isRequireRowNum() {
+    public boolean requireRowNum() {
         return requireRowNum;
     }
 
-    public PageSortOrder getSortOrder() {
+    public PageSortOrder sortOrder() {
         return ObjectUtils.orElse(sortOrder, PageSortOrder.ASC);
     }
 
-    public boolean isInclusiveStartRow() {
+    public boolean inclusiveStartRow() {
         return ObjectUtils.orElse(inclusiveStartRow, ObjectUtils.isEmpty(startRowKey));
     }
 
-    public Boolean isInclusiveStopRow() {
+    public Boolean inclusiveStopRow() {
         return ObjectUtils.orElse(inclusiveStopRow, true);
+    }
+
+    public FilterList filters() {
+        return filters;
     }
 
     // ----------------------------------------------------------------page start
@@ -158,6 +307,7 @@ public class PageQueryBuilder {
         return pageStartRow(results, false);
     }
 
+    // ------------------------------------------------------------private methods
     private <T> T pageStartRow(List<T> results, boolean isNextPage) {
         if (CollectionUtils.isEmpty(results)) {
             return null;
@@ -166,4 +316,81 @@ public class PageQueryBuilder {
         return results.get(isNextPage ? results.size() - 1 : 0);
     }
 
+    private static SingleColumnValueFilter equals(String family, String qualifier,
+                                                  byte[] value, boolean predicate) {
+        return new SingleColumnValueFilter(
+            toBytes(family), toBytes(qualifier), 
+            predicate ? CompareOp.EQUAL : CompareOp.NOT_EQUAL, 
+            value
+        );
+      //new SingleColumnValueExcludeFilter(toBytes(family), toBytes(qualifier), CompareOp.EQUAL, value);
+    }
+
+    // >(=) min
+    private static Filter greater0(String family, String qualifier,
+                                   byte[] min, boolean inclusive) {
+        return new SingleColumnValueFilter(
+            toBytes(family), toBytes(qualifier), 
+            inclusive ? CompareOp.GREATER_OR_EQUAL : CompareOp.GREATER, 
+            min
+        );
+    }
+
+    // <(=) max
+    private static Filter less0(String family, String qualifier,
+                                byte[] max, boolean inclusive) {
+        return new SingleColumnValueFilter(
+            toBytes(family), toBytes(qualifier), 
+            inclusive ? CompareOp.LESS_OR_EQUAL : CompareOp.LESS, 
+            max
+        );
+    }
+
+    private static Filter like(String family, String qualifier, 
+                               String wildcard, boolean predicate) {
+        return new SingleColumnValueFilter(
+            toBytes(family), toBytes(qualifier), 
+            predicate ? CompareOp.EQUAL : CompareOp.NOT_EQUAL, 
+            new SubstringComparator(wildcard)
+        );
+    }
+
+    private static Filter prefix(String family, String qualifier, 
+                                 byte[] prefix, boolean predicate) {
+        return new SingleColumnValueFilter(
+            toBytes(family), toBytes(qualifier),
+            predicate ? CompareOp.EQUAL : CompareOp.NOT_EQUAL, 
+            new BinaryPrefixComparator(prefix)
+        );
+    }
+
+    private static Filter regexp(String family, String qualifier, 
+                                 String regexp, boolean predicate) {
+        return new SingleColumnValueFilter(
+            toBytes(family), toBytes(qualifier), 
+            predicate ? CompareOp.EQUAL : CompareOp.NOT_EQUAL, 
+            new RegexStringComparator(regexp)
+        );
+    }
+
+    private static Filter regexpKey(String rowKeyRegexp, boolean predicate) {
+        return new RowFilter(predicate ? CompareOp.EQUAL : CompareOp.NOT_EQUAL, 
+                             new RegexStringComparator(rowKeyRegexp));
+    }
+
+    private static Filter likeKey(String keyword, boolean predicate) {
+        return new RowFilter(predicate ? CompareOp.EQUAL : CompareOp.NOT_EQUAL, 
+                             new SubstringComparator(keyword));
+    }
+
+    private static Filter prefixKey(byte[] keyPrefix, boolean predicate) {
+        //return new PrefixFilter(keyPrefix);
+        return new RowFilter(predicate ? CompareOp.EQUAL : CompareOp.NOT_EQUAL, 
+                             new BinaryPrefixComparator(keyPrefix));
+    }
+
+    private static Filter equalsKey(byte[] rowKey, boolean predicate) {
+        return new RowFilter(predicate ? CompareOp.EQUAL : CompareOp.NOT_EQUAL, 
+                             new BinaryComparator(rowKey));
+    }
 }

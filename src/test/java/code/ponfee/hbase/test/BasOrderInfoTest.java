@@ -16,7 +16,6 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import com.alibaba.fastjson.JSONObject;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
 import code.ponfee.hbase.model.PageQueryBuilder;
@@ -89,16 +88,16 @@ public class BasOrderInfoTest {
     @Test
     public void nextPageAll() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
-        query.setFamQuaes(ImmutableMap.of("cf1", new String[] { "name" }));
+        query.addColumns("cf1", "name");
         List<BasOrderInfo> data = new ArrayList<>();
         int count = 1;
         List<BasOrderInfo> list = (List<BasOrderInfo>) hbaseDao.nextPage(query);
-        while (CollectionUtils.isNotEmpty(list) && list.size() == query.getPageSize()) {
+        while (CollectionUtils.isNotEmpty(list) && list.size() == query.pageSize()) {
             count ++;
             data.addAll(list);
             printJson(list);
             printJson((String) query.nextPageStartRow(list).getRowKey());
-            query.setStartRowKey((String) query.nextPageStartRow(list).getRowKey());
+            query.startRowKey((String) query.nextPageStartRow(list).getRowKey());
             list = (List<BasOrderInfo>) hbaseDao.nextPage(query);
         }
         if (CollectionUtils.isNotEmpty(list)) {
@@ -115,16 +114,16 @@ public class BasOrderInfoTest {
     @Test
     public void nextPageAllDESC() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE, PageSortOrder.DESC);
-        query.setFamQuaes(ImmutableMap.of("cf1", new String[] { "name" }));
+        query.addColumns("cf1", "name" );
         List<BasOrderInfo> data = new ArrayList<>();
         int count = 1;
         List<BasOrderInfo> list = (List<BasOrderInfo>) hbaseDao.nextPage(query);
-        while (CollectionUtils.isNotEmpty(list) && list.size() == query.getPageSize()) {
+        while (CollectionUtils.isNotEmpty(list) && list.size() == query.pageSize()) {
             count ++;
             data.addAll(list);
             printJson(list);
             printJson((String) query.nextPageStartRow(list).getRowKey());
-            query.setStartRowKey((String) query.nextPageStartRow(list).getRowKey());
+            query.startRowKey((String) query.nextPageStartRow(list).getRowKey());
             list = (List<BasOrderInfo>) hbaseDao.nextPage(query);
         }
         if (CollectionUtils.isNotEmpty(list)) {
@@ -141,31 +140,31 @@ public class BasOrderInfoTest {
     @Test
     public void previousPage() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
-        query.setStartRowKey("name85");
+        query.startRowKey("name85");
         printJson(hbaseDao.previousPage(query));
     }
     
     @Test
     public void previousPageDesc() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE, PageSortOrder.DESC);
-        query.setStartRowKey("name85");
+        query.startRowKey("name85");
         printJson(hbaseDao.previousPage(query));
     }
 
     @Test
     public void previousPageAll() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
-        query.setFamQuaes(ImmutableMap.of("cf1", new String[] { "name" }));
-        query.setStartRowKey("ponfee2");
+        query.addColumns("cf1", "name" );
+        query.startRowKey("ponfee2");
         List<BasOrderInfo> data = new ArrayList<>();
         int count = 1;
         List<BasOrderInfo> list = (List<BasOrderInfo>) hbaseDao.previousPage(query);
-        while (CollectionUtils.isNotEmpty(list) && list.size() == query.getPageSize()) {
+        while (CollectionUtils.isNotEmpty(list) && list.size() == query.pageSize()) {
             count ++;
             data.addAll(list);
             printJson(list);
             printJson((String) query.previousPageStartRow(list).getRowKey());
-            query.setStartRowKey((String) query.previousPageStartRow(list).getRowKey());
+            query.startRowKey((String) query.previousPageStartRow(list).getRowKey());
             list = (List<BasOrderInfo>) hbaseDao.previousPage(query);
         }
         if (CollectionUtils.isNotEmpty(list)) {
@@ -182,17 +181,17 @@ public class BasOrderInfoTest {
     @Test
     public void previousPageAllDesc() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE, PageSortOrder.DESC);
-        query.setFamQuaes(ImmutableMap.of("cf1", new String[] { "name" }));
-        query.setStartRowKey("name10");
+        query.addColumns("cf1",  "name" );
+        query.startRowKey("name10");
         List<BasOrderInfo> data = new ArrayList<>();
         int count = 1;
         List<BasOrderInfo> list = (List<BasOrderInfo>) hbaseDao.previousPage(query);
-        while (CollectionUtils.isNotEmpty(list) && list.size() == query.getPageSize()) {
+        while (CollectionUtils.isNotEmpty(list) && list.size() == query.pageSize()) {
             count ++;
             data.addAll(list);
             printJson(list);
             printJson((String) query.previousPageStartRow(list).getRowKey());
-            query.setStartRowKey((String) query.previousPageStartRow(list).getRowKey());
+            query.startRowKey((String) query.previousPageStartRow(list).getRowKey());
             list = (List<BasOrderInfo>) hbaseDao.previousPage(query);
         }
         if (CollectionUtils.isNotEmpty(list)) {
@@ -209,7 +208,6 @@ public class BasOrderInfoTest {
     @Test
     public void count() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
-        query.setMaxResultSize(0);
         printJson("======================" + hbaseDao.count(query));
     }
 

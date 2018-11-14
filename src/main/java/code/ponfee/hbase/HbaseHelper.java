@@ -31,6 +31,7 @@ public class HbaseHelper {
         return StringUtils.leftPad(String.valueOf(salt % partition), len, '0');
     }
 
+    // -----------------------------------------------------------next row key
     public static byte[] nextStartRowKey(byte[] thisStartRowKey) {
         return ArrayUtils.add(thisStartRowKey, (byte) 0x00);
     }

@@ -137,17 +137,17 @@ public abstract class HbaseBatchDao<T, R extends Serializable & Comparable<R>>
 
     // ------------------------------------------------------------------------query all
     public <E> void scrollQuery(PageQueryBuilder query, BiConsumer<Integer, List<T>> consumer) {
-        query.setRequireRowNum(false);
+        query.requireRowNum(false);
         int pageNum = 0, size; List<T> page;
         do {
             page = this.nextPage(query);
             size = page == null ? 0 : page.size();
             if (size > 0) {
-                query.setStartRowKey(super.getRowKey(query.nextPageStartRow(page)), false);
+                query.startRowKey(super.getRowKey(query.nextPageStartRow(page)), false);
                 consumer.accept(++pageNum, page);
             }
             logger.info("==================Scroll Query at round {}==================", pageNum);
-        } while (size >= query.getPageSize());
+        } while (size >= query.pageSize());
     }
 
     // ------------------------------------------------------------------------private methods
@@ -160,13 +160,13 @@ public abstract class HbaseBatchDao<T, R extends Serializable & Comparable<R>>
      */
     private void scrollProcess(PageQueryBuilder query, String name, 
                                Consumer<List<ByteArrayWrapper>> callback) {
-        query.setRowKeyOnly(true);
+        query.rowKeyOnly();
         int count, round = 0; List<ByteArrayWrapper> rowKeys;
         do {
             logger.info("=================={} at round {}==================", name, round++);
             Scan scan = buildScan(
-                query.getStartRowKey(), query.getStopRowKey(), 
-                query.getActualPageSize(), false, pageScanHook(query)
+                query.startRowKey(), query.stopRowKey(), 
+                query.actualPageSize(), false, pageScanHook(query)
             );
             //scan.setCaching(2000);
             //scan.setCacheBlocks(false);
@@ -183,16 +183,16 @@ public abstract class HbaseBatchDao<T, R extends Serializable & Comparable<R>>
             rowKeys.sort(Comparator.nullsLast(Comparator.naturalOrder()));
 
             // data from multiple region server 
-            if (rowKeys.size() > query.getPageSize()) {
-                rowKeys = rowKeys.subList(0, query.getPageSize());
+            if (rowKeys.size() > query.pageSize()) {
+                rowKeys = rowKeys.subList(0, query.pageSize());
             }
 
             count = rowKeys.size();
             if (count > 0) {
-                query.setStartRowKey(nextStartRowKey(rowKeys.get(rowKeys.size() - 1).getArray()), true);
+                query.startRowKey(nextStartRowKey(rowKeys.get(rowKeys.size() - 1).getArray()), true);
                 callback.accept(rowKeys);
             }
-        } while (count >= query.getPageSize()); // maybe has next page
+        } while (count >= query.pageSize()); // maybe has next page
     }
 
     private static boolean join(CompletionService<Boolean> service, 

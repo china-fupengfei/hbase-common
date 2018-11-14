@@ -8,13 +8,13 @@ import java.util.Set;
 import javax.annotation.Resource;
 
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import com.alibaba.fastjson.JSONObject;
-import com.google.common.collect.ImmutableMap;
 
 import code.ponfee.hbase.model.PageQueryBuilder;
 import code.ponfee.hbase.other.BasOrderInfoDao;
@@ -77,16 +77,16 @@ public class CopyOrderInfoTest {
     @Test
     public void nextPageAll() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
-        query.setFamQuaes(ImmutableMap.of("cf1", new String[] { "name" }));
+        query.addColumns("cf1",  "name");
         List<CopyOrderInfo> data = new ArrayList<>();
         int count = 1;
         List<CopyOrderInfo> list = (List<CopyOrderInfo>) copyHbaseDao.nextPage(query);
-        while (CollectionUtils.isNotEmpty(list) && list.size() == query.getPageSize()) {
+        while (CollectionUtils.isNotEmpty(list) && list.size() == query.pageSize()) {
             count++;
             data.addAll(list);
             printJson(list);
             printJson((String) query.nextPageStartRow(list).getRowKey());
-            query.setStartRowKey((String) query.nextPageStartRow(list).getRowKey());
+            query.startRowKey((String) query.nextPageStartRow(list).getRowKey());
             list = (List<CopyOrderInfo>) copyHbaseDao.nextPage(query);
         }
         if (CollectionUtils.isNotEmpty(list)) {
@@ -109,9 +109,9 @@ public class CopyOrderInfoTest {
     @Test
     public void copy() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
-        query.setRowKeyPrefix("a");
-        query.setStartRowKey("a20160401_S1603310002862_03.21.3213102-T", true);
-        query.setStopRowKey("a20160401_S1603310004352_03.21.3211104-W");
+        query.prefixRowKey(Bytes.toBytes("a"));
+        query.startRowKey("a20160401_S1603310002862_03.21.3213102-T", true);
+        query.stopRowKey("a20160401_S1603310004352_03.21.3211104-W");
         basHbaseDao.copy(query, copyHbaseDao, t -> {
             t.setModelId(1);
             t.buildRowKey();
@@ -121,11 +121,11 @@ public class CopyOrderInfoTest {
     @Test
     public void copy2() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
-        query.setRowKeyPrefix("a");
+        query.prefixRowKey(Bytes.toBytes("a"));
         String startRow = basHbaseDao.nextRowKey("a", "a20160401_"); // 可以直接写a20160401_
         String stopRow = basHbaseDao.previousRowKey("a", "a20160403_");
-        query.setStartRowKey(startRow, true);
-        query.setStopRowKey(stopRow);
+        query.startRowKey(startRow, true);
+        query.stopRowKey(stopRow);
         basHbaseDao.copy(query, copyHbaseDao, t -> {
             t.setModelId(1);
             t.buildRowKey();

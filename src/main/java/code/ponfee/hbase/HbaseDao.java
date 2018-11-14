@@ -1,9 +1,9 @@
 package code.ponfee.hbase;
 
-import static com.google.common.base.CaseFormat.LOWER_CAMEL;
-import static com.google.common.base.CaseFormat.LOWER_UNDERSCORE;
 import static code.ponfee.hbase.model.HbaseMap.ROW_KEY_NAME;
 import static code.ponfee.hbase.model.HbaseMap.ROW_NUM_NAME;
+import static com.google.common.base.CaseFormat.LOWER_CAMEL;
+import static com.google.common.base.CaseFormat.LOWER_UNDERSCORE;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.commons.lang3.StringUtils.isNotEmpty;
@@ -50,7 +50,6 @@ import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.filter.CompareFilter;
-import org.apache.hadoop.hbase.filter.CompareFilter.CompareOp;
 import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.filter.FilterList;
 import org.apache.hadoop.hbase.filter.FilterList.Operator;
@@ -512,11 +511,11 @@ public abstract class HbaseDao<T, R extends Serializable & Comparable<R>> {
 
     // ------------------------------------------------------------------find for page
     public List<T> nextPage(PageQueryBuilder query) {
-        return page(query, true, query.getSortOrder() != PageSortOrder.ASC);
+        return page(query, true, query.sortOrder() != PageSortOrder.ASC);
     }
 
     public List<T> previousPage(PageQueryBuilder query) {
-        return page(query, false, query.getSortOrder() == PageSortOrder.ASC);
+        return page(query, false, query.sortOrder() == PageSortOrder.ASC);
     }
 
     // ------------------------------------------------------------------get the last|first row
@@ -713,7 +712,7 @@ public abstract class HbaseDao<T, R extends Serializable & Comparable<R>> {
         return template.execute(tableName, table -> {
             List<Delete> batch = new ArrayList<>(rowKeys.size());
             for (String rowKey : rowKeys) {
-                Delete delete = new Delete(Bytes.toBytes(rowKey));
+                Delete delete = new Delete(toBytes(rowKey));
                 if (families != null) {
                     families.stream().forEach(family -> delete.addFamily(family));
                 }
@@ -754,8 +753,8 @@ public abstract class HbaseDao<T, R extends Serializable & Comparable<R>> {
     // ------------------------------------------------------------------private methods
     private Object nearRowKey(String rowKeyPrefix, Object startRowKey, boolean isNext) {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(1, PageSortOrder.ASC);
-        query.setRowKeyPrefix(rowKeyPrefix);
-        query.setStartRowKey(startRowKey);
+        query.prefixRowKey(toBytes(rowKeyPrefix));
+        query.startRowKey(startRowKey);
         List<T> result = isNext ? nextPage(query) : previousPage(query);
         return CollectionUtils.isEmpty(result)
                ? startRowKey : getRowKeyAsString(result.get(0));
@@ -778,20 +777,20 @@ public abstract class HbaseDao<T, R extends Serializable & Comparable<R>> {
     }
 
     private List<T> page(PageQueryBuilder query, boolean isNextPage, boolean reversed) {
-        List<T> result = find(query.getStartRowKey(), query.getStopRowKey(), 
-                              query.getActualPageSize(), reversed, 
-                              pageScanHook(query), query.isInclusiveStartRow());
+        List<T> result = find(query.startRowKey(), query.stopRowKey(), 
+                              query.actualPageSize(), reversed, 
+                              pageScanHook(query), query.inclusiveStartRow());
         if (CollectionUtils.isNotEmpty(result)) {
-            if (result.size() > query.getPageSize()) {
+            if (result.size() > query.pageSize()) {
                 // the data from multiple region server 
-                result = result.subList(0, query.getPageSize());
+                result = result.subList(0, query.pageSize());
             }
 
             if (!isNextPage) {
                 Collections.reverse(result); // previous page
             }
 
-            if (query.isRequireRowNum()) {
+            if (query.requireRowNum()) {
                 for (int i = 0, n = result.size(); i < n; i++) {
                     setRowNum(result.get(i), i);
                 }
@@ -838,46 +837,34 @@ public abstract class HbaseDao<T, R extends Serializable & Comparable<R>> {
             // 提取rowkey以01结尾数据： new RowFilter(CompareOp.EQUAL, new RegexStringComparator(".*01$"));
             // 提取rowkey以包含201407的数据：new RowFilter(CompareOp.EQUAL, new SubstringComparator("201407"));
             // 提取rowkey以123开头的数据：new RowFilter(CompareOp.EQUAL, new BinaryPrefixComparator("123".getBytes()));
-            FilterList filters = new FilterList(Operator.MUST_PASS_ALL);
-            byte[] rowKeyPrefixBytes = toBytes(query.getRowKeyPrefix());
-            if (ArrayUtils.isNotEmpty(rowKeyPrefixBytes)) {
-                filters.addFilter(new PrefixFilter(rowKeyPrefixBytes));
-            }
-            if (isNotEmpty(query.getRowKeyRegexp())) {
-                RegexStringComparator regexp = new RegexStringComparator(query.getRowKeyRegexp());
-                filters.addFilter(new RowFilter(CompareOp.EQUAL, regexp));
-            }
-            byte[] stopRowBytes = toBytes(query.getStopRowKey());
-            if (ArrayUtils.isNotEmpty(stopRowBytes) && query.isInclusiveStopRow()) {
+            //FilterList filters = new FilterList(Operator.MUST_PASS_ALL);
+            FilterList filters = query.filters();
+            byte[] stopRowBytes = toBytes(query.stopRowKey());
+            if (ArrayUtils.isNotEmpty(stopRowBytes) && query.inclusiveStopRow()) {
                 filters.addFilter(new InclusiveStopFilter(stopRowBytes));
             }
 
             // query column
-            if (query.isRowKeyOnly()) {
-                filters.addFilter(new FirstKeyOnlyFilter());
-                //filters.addFilter(new KeyOnlyFilter());
-            } else if (MapUtils.isNotEmpty(query.getFamQuaes())) {
-                query.getFamQuaes().entrySet().forEach(entry -> {
-                    byte[] family = toBytes(entry.getKey());
-                    String[] qualifies = entry.getValue();
-                    if (ArrayUtils.isEmpty(qualifies)) {
-                        scan.addFamily(family);
-                    } else {
-                        Stream.of(qualifies).forEach(q -> scan.addColumn(family, toBytes(q)));
-                    }
-                });
-            } else {
-                addDefinedFamilies(scan);
+            if (!containsFilter(FirstKeyOnlyFilter.class, filters)) {
+                if (MapUtils.isNotEmpty(query.famQuaes())) {
+                    query.famQuaes().entrySet().forEach(entry -> {
+                        byte[] family = toBytes(entry.getKey());
+                        String[] qualifies = entry.getValue();
+                        if (ArrayUtils.isEmpty(qualifies)) {
+                            scan.addFamily(family);
+                        } else {
+                            Stream.of(qualifies).forEach(q -> scan.addColumn(family, toBytes(q)));
+                        }
+                    });
+                } else {
+                    addDefinedFamilies(scan);
+                }
             }
 
             scan.setFilter(filters);
             //scan.setCacheBlocks(false);
             //scan.setCaching(0);
-
-            // others
-            if (query.getMaxResultSize() > -1) {
-                scan.setMaxResultSize(query.getMaxResultSize());
-            }
+            //scan.setMaxResultSize(maxResultSize);
         };
     }
 
@@ -1028,51 +1015,6 @@ public abstract class HbaseDao<T, R extends Serializable & Comparable<R>> {
         }
     }
 
-    private static <E extends Filter> boolean containsFilter(Class<E> type, Filter filter) {
-        if (filter == null) {
-            return false;
-        } else if (!(filter instanceof FilterList)) {
-            return type.isInstance(filter);
-        } else {
-            return ((FilterList) filter).getFilters().stream()
-                                        .anyMatch(f -> type.isInstance(f));
-        }
-    }
-
-    private static byte[] toBytes(String str) {
-        if (str == null) {
-            return null;
-        } else if (isEmpty(str)) {
-            return code.ponfee.commons.util.Bytes.EMPTY_BYTES;
-        } else {
-            return Bytes.toBytes(str);
-        }
-    }
-
-    protected static byte[] toBytes(Object obj) {
-        if (obj == null) {
-            return null;
-        } else if (obj instanceof byte[]) {
-            return (byte[]) obj;
-        } else if (obj instanceof Byte[]) {
-            return ArrayUtils.toPrimitive((Byte[]) obj);
-        } else if (obj instanceof ByteArrayWrapper) {
-            return ((ByteArrayWrapper) obj).getArray();
-        } else if (obj instanceof InputStream) {
-            try (InputStream input = (InputStream) obj) {
-                return IOUtils.toByteArray(input);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        } else {
-            String str;
-            if (isEmpty(str = obj.toString())) { // first to string then to byte array
-                return code.ponfee.commons.util.Bytes.EMPTY_BYTES;
-            }
-            return Bytes.toBytes(str);
-        }
-    }
-
     private static byte[] getValue(Object target, Field field, HbaseField hf) {
         Object value = Fields.get(target, field);
         if (value == null) {
@@ -1094,6 +1036,17 @@ public abstract class HbaseDao<T, R extends Serializable & Comparable<R>> {
         }
     }
 
+    private static <E extends Filter> boolean containsFilter(Class<E> type, Filter filter) {
+        if (filter == null) {
+            return false;
+        } else if (!(filter instanceof FilterList)) {
+            return type == filter.getClass();
+        } else {
+            return ((FilterList) filter).getFilters().stream()
+                                        .anyMatch(f -> type == f.getClass());
+        }
+    }
+
     private static String buildTableName(String namespace, String tableName) {
         return isNotBlank(namespace) 
                ? namespace + ":" + tableName : tableName;
@@ -1106,6 +1059,40 @@ public abstract class HbaseDao<T, R extends Serializable & Comparable<R>> {
             ((HbaseEntity<R>) t).setRowNum(rowNum);
         } else {
             ((Map<String, Object>) t).put(ROW_NUM_NAME, rowNum);
+        }
+    }
+
+    private static byte[] toBytes(String str) {
+        if (str == null) {
+            return null;
+        } else if (isEmpty(str)) {
+            return code.ponfee.commons.util.Bytes.EMPTY_BYTES;
+        } else {
+            return Bytes.toBytes(str);
+        }
+    }
+
+    private static byte[] toBytes(Object obj) {
+        if (obj == null) {
+            return null;
+        } else if (obj instanceof byte[]) {
+            return (byte[]) obj;
+        } else if (obj instanceof Byte[]) {
+            return ArrayUtils.toPrimitive((Byte[]) obj);
+        } else if (obj instanceof ByteArrayWrapper) {
+            return ((ByteArrayWrapper) obj).getArray();
+        } else if (obj instanceof InputStream) {
+            try (InputStream input = (InputStream) obj) {
+                return IOUtils.toByteArray(input);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            String str;
+            if (isEmpty(str = obj.toString())) { // first to string then to byte array
+                return code.ponfee.commons.util.Bytes.EMPTY_BYTES;
+            }
+            return Bytes.toBytes(str);
         }
     }
 

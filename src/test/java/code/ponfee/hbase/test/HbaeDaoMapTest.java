@@ -20,7 +20,6 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import com.alibaba.fastjson.JSONObject;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
 import code.ponfee.commons.util.Dates;
@@ -107,13 +106,15 @@ public class HbaeDaoMapTest {
     @Test
     public void nextPage() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE, PageSortOrder.DESC);
+        query.requireRowNum(false);
+        //query.rowKeyOnly();
         printJson(hbaseDao.nextPage(query));
     }
 
     @Test
     public void nextPageAll() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(111, PageSortOrder.ASC);
-        query.setStartRowKey("00000000");
+        query.startRowKey("00000000");
         //query.setRowKeyPrefix("fu_ponfee_2009");
         //Set<String> set = new TreeSet<>();
         Set<String> set = new LinkedHashSet<>();
@@ -129,31 +130,31 @@ public class HbaeDaoMapTest {
     @Test
     public void previousPage() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
-        query.setStartRowKey("20050828085930");
+        query.startRowKey("20050828085930");
         printJson(hbaseDao.previousPage(query));
     }
     
     @Test
     public void previousPageDesc() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE, PageSortOrder.DESC);
-        query.setStartRowKey("20050828085930");
+        query.startRowKey("20050828085930");
         printJson(hbaseDao.previousPage(query));
     }
 
     @Test
     public void previousPageAll() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(111);
-        query.setFamQuaes(ImmutableMap.of("cf1", new String[] { "name" }));
-        query.setStartRowKey("20181004162958");
+        query.addColumns("cf1", "name");
+        query.startRowKey("20181004162958");
         List<ExtendsHbaseMap<Object>> data = new ArrayList<>();
         int count = 1;
         List<ExtendsHbaseMap<Object>> list = (List<ExtendsHbaseMap<Object>>) hbaseDao.previousPage(query);
-        while (CollectionUtils.isNotEmpty(list) && list.size() == query.getPageSize()) {
+        while (CollectionUtils.isNotEmpty(list) && list.size() == query.pageSize()) {
             count ++;
             data.addAll(list);
             printJson(list);
             printJson((String) query.previousPageStartRow(list).get(ROW_KEY_NAME));
-            query.setStartRowKey((String) query.previousPageStartRow(list).get(ROW_KEY_NAME));
+            query.startRowKey((String) query.previousPageStartRow(list).get(ROW_KEY_NAME));
             list = (List<ExtendsHbaseMap<Object>>) hbaseDao.previousPage(query);
         }
         if (CollectionUtils.isNotEmpty(list)) {
