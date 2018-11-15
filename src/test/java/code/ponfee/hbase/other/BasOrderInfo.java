@@ -4,7 +4,7 @@ import static code.ponfee.hbase.HbaseHelper.partition;
 
 import java.util.Date;
 
-import com.alibaba.fastjson.annotation.JSONField;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
 import code.ponfee.commons.util.Dates;
 import code.ponfee.hbase.Constants;
@@ -31,7 +31,7 @@ public class BasOrderInfo extends HbaseEntity<String> {
     private String cityCode;
 
     @HbaseField(format = { DATE_PATTERN1, DATE_PATTERN2 })
-    @JSONField(format = DATE_PATTERN2)
+    @JsonFormat(pattern=DATE_PATTERN2)
     private Date closedTime;
 
     //@HbaseField(qualifier = "product_code")
@@ -41,7 +41,7 @@ public class BasOrderInfo extends HbaseEntity<String> {
     private double actualWeight;
 
     @HbaseField(format = { DATE_PATTERN1, DATE_PATTERN2 })
-    @JSONField(format = DATE_PATTERN2)
+    @JsonFormat(pattern=DATE_PATTERN2)
     private Date orderDate;
 
     //@HbaseField(qualifier = "city_name")
@@ -60,7 +60,7 @@ public class BasOrderInfo extends HbaseEntity<String> {
     private double price;
 
     @HbaseField(format = { DATE_PATTERN1, DATE_PATTERN2 })
-    @JSONField(format = DATE_PATTERN2)
+    @JsonFormat(pattern=DATE_PATTERN2)
     private Date wmsReceiveTime;
 
     //@HbaseField(qualifier = "order_amount")
@@ -76,7 +76,7 @@ public class BasOrderInfo extends HbaseEntity<String> {
     private String companyCode;
 
     @HbaseField(format = { DATE_PATTERN1, DATE_PATTERN2 })
-    @JSONField(format = DATE_PATTERN2)
+    @JsonFormat(pattern=DATE_PATTERN2)
     private Date signinTm;
 
     //@HbaseField(qualifier = "erp_order")

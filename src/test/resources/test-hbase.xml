@@ -21,11 +21,13 @@
     </property>
   </bean>
 
-    <!-- 注解方式定时任务 -->
-    <task:executor id="taskExecutor" pool-size="1-64"
-                   queue-capacity="0" keep-alive="60" 
-                   rejection-policy="CALLER_RUNS" />
-    <task:scheduler id="taskScheduler" pool-size="5" />
-    <task:annotation-driven executor="taskExecutor" scheduler="taskScheduler" />
+  <bean class="code.ponfee.commons.util.SpringContextHolder" />
+
+  <!-- 注解方式定时任务 -->
+  <task:executor id="taskExecutor" pool-size="1-64"
+                 queue-capacity="0" keep-alive="60" 
+                 rejection-policy="CALLER_RUNS" />
+  <task:scheduler id="taskScheduler" pool-size="5" />
+  <task:annotation-driven executor="taskExecutor" scheduler="taskScheduler" />
 
 </beans>

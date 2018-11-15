@@ -9,47 +9,40 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
-import javax.annotation.Resource;
-
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Ignore;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import com.alibaba.fastjson.JSONObject;
 import com.google.common.collect.Lists;
 
 import code.ponfee.commons.util.Dates;
+import code.ponfee.hbase.BaseTest;
 import code.ponfee.hbase.model.PageQueryBuilder;
 import code.ponfee.hbase.model.PageSortOrder;
 import code.ponfee.hbase.other.ExtendsHbaseMap;
 import code.ponfee.hbase.other.ExtendsHbaseMapDao;
 
-@RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(locations = { "classpath*:test-hbase.xml" })
-public class HbaeDaoMapTest {
+public class HbaeDaoMapTest extends BaseTest<ExtendsHbaseMapDao> {
+
     private static final int PAGE_SIZE = 11;
-    private @Resource ExtendsHbaseMapDao hbaseDao;
 
     @Test
     @Ignore
     public void dropTable() {
-        System.out.println(hbaseDao.dropTable());
+        System.out.println(getBean().dropTable());
     }
 
     @Test
     @Ignore
     public void createTable() {
-        System.out.println(hbaseDao.createTable());
+        System.out.println(getBean().createTable());
     }
 
     @Test
     @Ignore
     public void descTable() {
-        System.out.println(hbaseDao.descTable());
+        System.out.println(getBean().descTable());
     }
 
     @Test
@@ -65,42 +58,42 @@ public class HbaeDaoMapTest {
             map.put("rowKey", Dates.format(Dates.random(date), "yyyyMMddHHmmss"));
             batch.add(map);
         }
-        printJson(hbaseDao.put(batch));
+        consoleJson(getBean().put(batch));
     }
 
     @Test
     public void get() {
-        printJson(hbaseDao.get("20000201211046"));
+        consoleJson(getBean().get("20000201211046"));
     }
 
     @Test
     public void first() {
-        printJson(hbaseDao.first());
+        consoleJson(getBean().first());
     }
     
     @Test
     public void last() {
-        printJson(hbaseDao.last());
+        consoleJson(getBean().last());
     }
 
     @Test
     public void range() {
-        printJson(hbaseDao.range("20000201211046", "20060201211046"));
+        consoleJson(getBean().range("20000201211046", "20060201211046"));
     }
 
     @Test
     public void find() {
-        printJson(hbaseDao.find("20041014150203", "20050828085930", 20));
-        printJson(hbaseDao.find("20041014150203", "20050828085930", 2));
-        printJson(hbaseDao.find("20050828085930", "20041014150203", 20, true));
-        printJson(hbaseDao.find("20050828085930", "20041014150203", 2, true));
+        consoleJson(getBean().find("20041014150203", "20050828085930", 20));
+        consoleJson(getBean().find("20041014150203", "20050828085930", 2));
+        consoleJson(getBean().find("20050828085930", "20041014150203", 20, true));
+        consoleJson(getBean().find("20050828085930", "20041014150203", 2, true));
     }
 
     @Test
     public void findAll() {
-        List<ExtendsHbaseMap<Object>> list = (List<ExtendsHbaseMap<Object>>) hbaseDao.range(null, null);
+        List<ExtendsHbaseMap<Object>> list = (List<ExtendsHbaseMap<Object>>) getBean().range(null, null);
         System.out.println("======================" + list.size());
-        printJson(list);
+        consoleJson(list);
     }
 
     @Test
@@ -108,7 +101,7 @@ public class HbaeDaoMapTest {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE, PageSortOrder.DESC);
         query.requireRowNum(false);
         //query.rowKeyOnly();
-        printJson(hbaseDao.nextPage(query));
+        consoleJson(getBean().nextPage(query));
     }
 
     @Test
@@ -118,27 +111,27 @@ public class HbaeDaoMapTest {
         //query.setRowKeyPrefix("fu_ponfee_2009");
         //Set<String> set = new TreeSet<>();
         Set<String> set = new LinkedHashSet<>();
-        hbaseDao.scrollQuery(query, (pageNum, data)->{
+        getBean().scrollQuery(query, (pageNum, data)->{
             System.err.println("======================pageNum: " + pageNum);
-            printJson(data);
+            consoleJson(data);
             data.stream().forEach(m -> set.add((String)m.getRowKey()));
         });
         System.err.println("======================" + set.size());
-        printJson(set);
+        consoleJson(set);
     }
 
     @Test
     public void previousPage() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
         query.startRowKey("20050828085930");
-        printJson(hbaseDao.previousPage(query));
+        consoleJson(getBean().previousPage(query));
     }
     
     @Test
     public void previousPageDesc() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE, PageSortOrder.DESC);
         query.startRowKey("20050828085930");
-        printJson(hbaseDao.previousPage(query));
+        consoleJson(getBean().previousPage(query));
     }
 
     @Test
@@ -148,14 +141,14 @@ public class HbaeDaoMapTest {
         query.startRowKey("20181004162958");
         List<ExtendsHbaseMap<Object>> data = new ArrayList<>();
         int count = 1;
-        List<ExtendsHbaseMap<Object>> list = (List<ExtendsHbaseMap<Object>>) hbaseDao.previousPage(query);
+        List<ExtendsHbaseMap<Object>> list = (List<ExtendsHbaseMap<Object>>) getBean().previousPage(query);
         while (CollectionUtils.isNotEmpty(list) && list.size() == query.pageSize()) {
             count ++;
             data.addAll(list);
-            printJson(list);
-            printJson((String) query.previousPageStartRow(list).get(ROW_KEY_NAME));
+            consoleJson(list);
+            consoleJson((String) query.previousPageStartRow(list).get(ROW_KEY_NAME));
             query.startRowKey((String) query.previousPageStartRow(list).get(ROW_KEY_NAME));
-            list = (List<ExtendsHbaseMap<Object>>) hbaseDao.previousPage(query);
+            list = (List<ExtendsHbaseMap<Object>>) getBean().previousPage(query);
         }
         if (CollectionUtils.isNotEmpty(list)) {
             data.addAll(list);
@@ -165,48 +158,36 @@ public class HbaeDaoMapTest {
         data.stream().forEach(m -> set.add((String)m.get(ROW_KEY_NAME)));
         System.out.println("======================count: " + count);
         System.out.println("======================" + set.size());
-        printJson(set);
+        consoleJson(set);
     }
 
     @Test
     public void page() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(1);
-        printJson(hbaseDao.nextPage(query));
+        consoleJson(getBean().nextPage(query));
     }
 
     @Test
     public void count() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(111);
-        printJson("======================" + hbaseDao.count(query));
+        consoleJson("======================" + getBean().count(query));
     }
 
     // -------------------------------------------------------------------------------
     @Test
     public void prefix() {
-        //printJson(extendsHbaseDao1.prefix("name10", "name10", PAGE_SIZE));
-        printJson(hbaseDao.prefix("2018", PAGE_SIZE));
+        consoleJson(getBean().prefix("2018", PAGE_SIZE));
     }
 
     @Test
     public void regexp() {
-        //printJson(extendsHbaseDao1.regexp("^name.*1$", "name10", PAGE_SIZE));
-        printJson(hbaseDao.regexp("^20[0-1]{1}8.*1$", 20));
+        consoleJson(getBean().regexp("^20[0-1]{1}8.*1$", 20));
     }
 
     @Test
     @Ignore
     public void delete() {
-        printJson(hbaseDao.delete(Lists.newArrayList("20171231050359","20170922213037" )));
-    }
-
-    private static void printJson(Object obj) {
-        try {
-            Thread.sleep(100);
-            System.err.println(JSONObject.toJSONString(obj));
-            Thread.sleep(100);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        consoleJson(getBean().delete(Lists.newArrayList("20171231050359","20170922213037" )));
     }
 
 }

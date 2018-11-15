@@ -2,7 +2,7 @@ package code.ponfee.hbase.other;
 
 import java.util.Date;
 
-import com.alibaba.fastjson.annotation.JSONField;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
 import code.ponfee.commons.util.Dates;
 import code.ponfee.hbase.Constants;
@@ -19,7 +19,7 @@ public class ExtendsHbaseEntity extends HbaseEntity<String> {
     private int age;
 
     @HbaseField(format = "yyyyMMdd")
-    @JSONField(format = "yyyyMMdd")
+    @JsonFormat(pattern = "yyyyMMdd")
     private Date birthday;
 
     public String getFirstName() {

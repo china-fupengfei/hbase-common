@@ -10,68 +10,61 @@ import javax.annotation.Resource;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import com.alibaba.fastjson.JSONObject;
-
+import code.ponfee.hbase.BaseTest;
 import code.ponfee.hbase.model.PageQueryBuilder;
 import code.ponfee.hbase.other.BasOrderInfoDao;
 import code.ponfee.hbase.other.CopyOrderInfo;
 import code.ponfee.hbase.other.CopyOrderInfoDao;
 
-@RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(locations = { "classpath*:test-hbase.xml" })
-public class CopyOrderInfoTest {
+public class CopyOrderInfoTest extends BaseTest<CopyOrderInfoDao> {
 
     private static final int PAGE_SIZE = 5000;
     private @Resource BasOrderInfoDao basHbaseDao;
-    private @Resource CopyOrderInfoDao copyHbaseDao;
 
     @Test
     public void tableExists() {
-        System.out.println(copyHbaseDao.tableExists());
+        System.out.println(getBean().tableExists());
     }
 
     @Test
     public void dropTable() {
-        System.out.println(copyHbaseDao.dropTable());
+        System.out.println(getBean().dropTable());
     }
 
     @Test
     public void createTable() {
-        System.out.println(copyHbaseDao.createTable());
+        System.out.println(getBean().createTable());
     }
 
     @Test
     public void descTable() {
-        System.out.println(copyHbaseDao.descTable());
+        System.out.println(getBean().descTable());
     }
 
     @Test
     public void get() {
-        printJson(copyHbaseDao.get("abc"));
+        consoleJson(getBean().get("abc"));
     }
 
     @Test
     public void first() {
-        printJson(copyHbaseDao.first());
+        consoleJson(getBean().first());
     }
 
     @Test
     public void last() {
-        printJson(copyHbaseDao.last());
+        consoleJson(getBean().last());
     }
 
     @Test
     public void range() {
-        printJson(copyHbaseDao.range(null, null));
+        consoleJson(getBean().range(null, null));
     }
 
     @Test
     public void find() {
-        printJson(copyHbaseDao.find("abc", 20));
+        consoleJson(getBean().find("abc", 20));
     }
 
     @Test
@@ -80,14 +73,14 @@ public class CopyOrderInfoTest {
         query.addColumns("cf1",  "name");
         List<CopyOrderInfo> data = new ArrayList<>();
         int count = 1;
-        List<CopyOrderInfo> list = (List<CopyOrderInfo>) copyHbaseDao.nextPage(query);
+        List<CopyOrderInfo> list = (List<CopyOrderInfo>) getBean().nextPage(query);
         while (CollectionUtils.isNotEmpty(list) && list.size() == query.pageSize()) {
             count++;
             data.addAll(list);
-            printJson(list);
-            printJson((String) query.nextPageStartRow(list).getRowKey());
+            consoleJson(list);
+            consoleJson((String) query.nextPageStartRow(list).getRowKey());
             query.startRowKey((String) query.nextPageStartRow(list).getRowKey());
-            list = (List<CopyOrderInfo>) copyHbaseDao.nextPage(query);
+            list = (List<CopyOrderInfo>) getBean().nextPage(query);
         }
         if (CollectionUtils.isNotEmpty(list)) {
             data.addAll(list);
@@ -97,13 +90,13 @@ public class CopyOrderInfoTest {
         data.stream().forEach(m -> set.add((String) m.getRowKey()));
         System.out.println("======================count: " + count);
         System.out.println("======================" + set.size());
-        printJson(set);
+        consoleJson(set);
     }
 
     @Test
     public void count() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
-        printJson("======================" + copyHbaseDao.count(query));
+        consoleJson("======================" + getBean().count(query));
     }
 
     @Test
@@ -112,7 +105,7 @@ public class CopyOrderInfoTest {
         query.prefixRowKey(Bytes.toBytes("a"));
         query.startRowKey("a20160401_S1603310002862_03.21.3213102-T", true);
         query.stopRowKey("a20160401_S1603310004352_03.21.3211104-W");
-        basHbaseDao.copy(query, copyHbaseDao, t -> {
+        basHbaseDao.copy(query, getBean(), t -> {
             t.setModelId(1);
             t.buildRowKey();
         });
@@ -126,7 +119,7 @@ public class CopyOrderInfoTest {
         String stopRow = basHbaseDao.previousRowKey("a", "a20160403_");
         query.startRowKey(startRow, true);
         query.stopRowKey(stopRow);
-        basHbaseDao.copy(query, copyHbaseDao, t -> {
+        basHbaseDao.copy(query, getBean(), t -> {
             t.setModelId(1);
             t.buildRowKey();
         });
@@ -135,47 +128,36 @@ public class CopyOrderInfoTest {
     @Test
     public void nextRowKey() {
         // abc
-        printJson(basHbaseDao.nextRowKey("a", "a20160401_"));
+        consoleJson(basHbaseDao.nextRowKey("a", "a20160401_"));
     }
 
     @Test
     public void previousRowKey() {
         // a20160402_S1604050001672_03.24.3241104-P
-        printJson(basHbaseDao.previousRowKey("a", "a20160403_"));
+        consoleJson(basHbaseDao.previousRowKey("a", "a20160403_"));
 
         // a20180926_S1809260015952_07.07.7705017
-        printJson(basHbaseDao.previousRowKey("a", "a20360403_"));
+        consoleJson(basHbaseDao.previousRowKey("a", "a20360403_"));
     }
 
     @Test
     public void previousRowKey2() {
         // a20160402_S1604050001672_03.24.3241104-P
-        printJson(basHbaseDao.previousRowKey("a", "a20160402_", 50));
+        consoleJson(basHbaseDao.previousRowKey("a", "a20160402_", 50));
 
         // a20180926_S1809260015952_07.07.7705017
-        printJson(basHbaseDao.previousRowKey("a", "a20460400_", 50));
+        consoleJson(basHbaseDao.previousRowKey("a", "a20460400_", 50));
 
         // a20000402_
-        printJson(basHbaseDao.previousRowKey("a", "a20000402_", 50));
+        consoleJson(basHbaseDao.previousRowKey("a", "a20000402_", 50));
     }
 
     @Test
     public void previousRowKey3() {
         // 6_57095810-6_20180926_CK2018092691_JXJ605060038
-        printJson(basHbaseDao.previousRowKey(null, null));
+        consoleJson(basHbaseDao.previousRowKey(null, null));
 
-        printJson(basHbaseDao.previousRowKey("a", null)); // 全表扫描
-    }
-
-    // -------------------------------------------------------------------------------
-    private static void printJson(Object obj) {
-        try {
-            Thread.sleep(100);
-            System.err.println(JSONObject.toJSONString(obj));
-            Thread.sleep(100);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        consoleJson(basHbaseDao.previousRowKey("a", null)); // 全表扫描
     }
 
 }

@@ -6,48 +6,40 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-import javax.annotation.Resource;
-
 import org.apache.commons.collections4.CollectionUtils;
 import org.junit.Ignore;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import com.alibaba.fastjson.JSONObject;
 import com.google.common.collect.Lists;
 
+import code.ponfee.hbase.BaseTest;
 import code.ponfee.hbase.model.PageQueryBuilder;
 import code.ponfee.hbase.model.PageSortOrder;
 import code.ponfee.hbase.other.BasOrderInfo;
 import code.ponfee.hbase.other.BasOrderInfoDao;
 
-@RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(locations = { "classpath*:test-hbase.xml" })
-public class BasOrderInfoTest {
+public class BasOrderInfoTest extends BaseTest<BasOrderInfoDao> {
     
     private static final int PAGE_SIZE = 20;
-    private @Resource BasOrderInfoDao hbaseDao;
 
     @Test
     public void tableExists() {
-        System.out.println(hbaseDao.tableExists());
+        System.out.println(getBean().tableExists());
     }
     
     @Test
     @Ignore
     public void dropTable() {
-        System.out.println(hbaseDao.dropTable());
+        System.out.println(getBean().dropTable());
     }
     
     @Test
     public void createTable() {
-        System.out.println(hbaseDao.createTable());
+        System.out.println(getBean().createTable());
     }
     @Test
     public void descTable() {
-        System.out.println(hbaseDao.descTable());
+        System.out.println(getBean().descTable());
     }
 
     @Test
@@ -56,33 +48,33 @@ public class BasOrderInfoTest {
 
     @Test
     public void get() {
-        printJson(hbaseDao.get("abc"));
+        consoleJson(getBean().get("abc"));
     }
 
     @Test
     public void first() {
-        printJson(hbaseDao.first());
+        consoleJson(getBean().first());
     }
     
     @Test
     public void last() {
-        printJson(hbaseDao.last());
+        consoleJson(getBean().last());
     }
 
     @Test
     public void range() {
-        printJson(hbaseDao.range("abc", "def"));
+        consoleJson(getBean().range("abc", "def"));
     }
 
     @Test
     public void find() {
-        printJson(hbaseDao.find("abc", 20));
+        consoleJson(getBean().find("abc", 20));
     }
 
     @Test
     public void nextPage() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE, PageSortOrder.DESC);
-        printJson(hbaseDao.nextPage(query));
+        consoleJson(getBean().nextPage(query));
     }
 
     @Test
@@ -91,14 +83,14 @@ public class BasOrderInfoTest {
         query.addColumns("cf1", "name");
         List<BasOrderInfo> data = new ArrayList<>();
         int count = 1;
-        List<BasOrderInfo> list = (List<BasOrderInfo>) hbaseDao.nextPage(query);
+        List<BasOrderInfo> list = (List<BasOrderInfo>) getBean().nextPage(query);
         while (CollectionUtils.isNotEmpty(list) && list.size() == query.pageSize()) {
             count ++;
             data.addAll(list);
-            printJson(list);
-            printJson((String) query.nextPageStartRow(list).getRowKey());
+            consoleJson(list);
+            consoleJson((String) query.nextPageStartRow(list).getRowKey());
             query.startRowKey((String) query.nextPageStartRow(list).getRowKey());
-            list = (List<BasOrderInfo>) hbaseDao.nextPage(query);
+            list = (List<BasOrderInfo>) getBean().nextPage(query);
         }
         if (CollectionUtils.isNotEmpty(list)) {
             data.addAll(list);
@@ -108,7 +100,7 @@ public class BasOrderInfoTest {
         data.stream().forEach(m -> set.add((String)m.getRowKey()));
         System.out.println("======================count: " + count);
         System.out.println("======================" + set.size());
-        printJson(set);
+        consoleJson(set);
     }
 
     @Test
@@ -117,14 +109,14 @@ public class BasOrderInfoTest {
         query.addColumns("cf1", "name" );
         List<BasOrderInfo> data = new ArrayList<>();
         int count = 1;
-        List<BasOrderInfo> list = (List<BasOrderInfo>) hbaseDao.nextPage(query);
+        List<BasOrderInfo> list = (List<BasOrderInfo>) getBean().nextPage(query);
         while (CollectionUtils.isNotEmpty(list) && list.size() == query.pageSize()) {
             count ++;
             data.addAll(list);
-            printJson(list);
-            printJson((String) query.nextPageStartRow(list).getRowKey());
+            consoleJson(list);
+            consoleJson((String) query.nextPageStartRow(list).getRowKey());
             query.startRowKey((String) query.nextPageStartRow(list).getRowKey());
-            list = (List<BasOrderInfo>) hbaseDao.nextPage(query);
+            list = (List<BasOrderInfo>) getBean().nextPage(query);
         }
         if (CollectionUtils.isNotEmpty(list)) {
             data.addAll(list);
@@ -134,21 +126,21 @@ public class BasOrderInfoTest {
         data.stream().forEach(m -> set.add((String)m.getRowKey()));
         System.out.println("======================count: " + count);
         System.out.println("======================" + set.size());
-        printJson(set);
+        consoleJson(set);
     }
     
     @Test
     public void previousPage() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
         query.startRowKey("name85");
-        printJson(hbaseDao.previousPage(query));
+        consoleJson(getBean().previousPage(query));
     }
     
     @Test
     public void previousPageDesc() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE, PageSortOrder.DESC);
         query.startRowKey("name85");
-        printJson(hbaseDao.previousPage(query));
+        consoleJson(getBean().previousPage(query));
     }
 
     @Test
@@ -158,14 +150,14 @@ public class BasOrderInfoTest {
         query.startRowKey("ponfee2");
         List<BasOrderInfo> data = new ArrayList<>();
         int count = 1;
-        List<BasOrderInfo> list = (List<BasOrderInfo>) hbaseDao.previousPage(query);
+        List<BasOrderInfo> list = (List<BasOrderInfo>) getBean().previousPage(query);
         while (CollectionUtils.isNotEmpty(list) && list.size() == query.pageSize()) {
             count ++;
             data.addAll(list);
-            printJson(list);
-            printJson((String) query.previousPageStartRow(list).getRowKey());
+            consoleJson(list);
+            consoleJson((String) query.previousPageStartRow(list).getRowKey());
             query.startRowKey((String) query.previousPageStartRow(list).getRowKey());
-            list = (List<BasOrderInfo>) hbaseDao.previousPage(query);
+            list = (List<BasOrderInfo>) getBean().previousPage(query);
         }
         if (CollectionUtils.isNotEmpty(list)) {
             data.addAll(list);
@@ -175,7 +167,7 @@ public class BasOrderInfoTest {
         data.stream().forEach(m -> set.add((String)m.getRowKey()));
         System.out.println("======================count: " + count);
         System.out.println("======================" + set.size());
-        printJson(set);
+        consoleJson(set);
     }
 
     @Test
@@ -185,14 +177,14 @@ public class BasOrderInfoTest {
         query.startRowKey("name10");
         List<BasOrderInfo> data = new ArrayList<>();
         int count = 1;
-        List<BasOrderInfo> list = (List<BasOrderInfo>) hbaseDao.previousPage(query);
+        List<BasOrderInfo> list = (List<BasOrderInfo>) getBean().previousPage(query);
         while (CollectionUtils.isNotEmpty(list) && list.size() == query.pageSize()) {
             count ++;
             data.addAll(list);
-            printJson(list);
-            printJson((String) query.previousPageStartRow(list).getRowKey());
+            consoleJson(list);
+            consoleJson((String) query.previousPageStartRow(list).getRowKey());
             query.startRowKey((String) query.previousPageStartRow(list).getRowKey());
-            list = (List<BasOrderInfo>) hbaseDao.previousPage(query);
+            list = (List<BasOrderInfo>) getBean().previousPage(query);
         }
         if (CollectionUtils.isNotEmpty(list)) {
             data.addAll(list);
@@ -202,42 +194,32 @@ public class BasOrderInfoTest {
         data.stream().forEach(m -> set.add((String)m.getRowKey()));
         System.out.println("======================count: " + count);
         System.out.println("======================" + set.size());
-        printJson(set);
+        consoleJson(set);
     }
 
     @Test
     public void count() {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
-        printJson("======================" + hbaseDao.count(query));
+        consoleJson("======================" + getBean().count(query));
     }
 
     // -------------------------------------------------------------------------------
     @Test
     public void prefix() {
-        //printJson(extendsHbaseDao1.prefix("name10", "name10", PAGE_SIZE));
-        printJson(hbaseDao.prefix("ab_", PAGE_SIZE));
+        //consoleJson(extendsgetBean()1.prefix("name10", "name10", PAGE_SIZE));
+        consoleJson(getBean().prefix("ab_", PAGE_SIZE));
     }
 
     @Test
     public void regexp() {
-        printJson(hbaseDao.regexp("^4_.*_20160101_.*1$", 2));
+        consoleJson(getBean().regexp("^4_.*_20160101_.*1$", 2));
     }
 
     @Test
     public void delete() {
-        printJson(hbaseDao.get("abc"));
-        printJson(hbaseDao.delete(Lists.newArrayList("def")));
-        printJson(hbaseDao.get("abc"));
-    }
-
-    private static void printJson(Object obj) {
-        try {
-            Thread.sleep(100);
-            System.err.println(JSONObject.toJSONString(obj));
-            Thread.sleep(100);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        consoleJson(getBean().get("abc"));
+        consoleJson(getBean().delete(Lists.newArrayList("def")));
+        consoleJson(getBean().get("abc"));
     }
 
 }
