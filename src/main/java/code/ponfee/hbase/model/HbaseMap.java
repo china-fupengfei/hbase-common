@@ -4,10 +4,6 @@ import java.beans.Transient;
 import java.io.Serializable;
 import java.util.HashMap;
 
-import org.apache.commons.lang3.builder.CompareToBuilder;
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
-
 import code.ponfee.commons.math.Numbers;
 
 /**
@@ -63,17 +59,32 @@ public abstract class HbaseMap<V, R extends Serializable & Comparable<? super R>
     }
 
     @Override
-    public int compareTo(HbaseMap<V, R> o) {
-        if (o == null) {
+    public int compareTo(HbaseMap<V, R> other) {
+        R tkey, okey;
+        if ((tkey = this.getRowKey()) == null) {
             return 1;
+        } else if (other == null
+            || (okey = other.getRowKey()) == null) {
+            return -1;
+        } else {
+            return tkey.compareTo(okey);
         }
-        return new CompareToBuilder().append(this.getRowKey(), o.getRowKey())
-                                     .toComparison();
+        /*return new CompareToBuilder()
+            .append(this.getRowKey(), other.getRowKey())
+            .toComparison();*/
     }
 
     @Override
     public int hashCode() {
-        return new HashCodeBuilder().append(this.getRowKey()).toHashCode();
+        R rowKey;
+        if ((rowKey = this.getRowKey()) == null) {
+            return 0;
+        } else {
+            return rowKey.hashCode();
+        }
+        /*return new HashCodeBuilder()
+            .append(this.getRowKey())
+            .toHashCode();*/
     }
 
     @SuppressWarnings("unchecked")
@@ -82,14 +93,23 @@ public abstract class HbaseMap<V, R extends Serializable & Comparable<? super R>
         if (!(obj instanceof HbaseMap)) {
             return false;
         }
-        return new EqualsBuilder()
+
+        R tkey, okey;
+        if ((tkey = this.getRowKey()) == null 
+            || (okey = ((HbaseMap<?, R>) obj).getRowKey()) == null) {
+            return false;
+        } else {
+            return tkey.equals(okey);
+        }
+        /*return new EqualsBuilder()
                 .append(this.getRowKey(), ((HbaseMap<?, R>) obj)
-                .getRowKey()).isEquals();
+                .getRowKey()).isEquals();*/
     }
 
     @Override
     public String toString() {
         return getClass().getName() + "@" + this.getRowKey();
+        //return new ToStringBuilder(this).toString();
     }
 
 }

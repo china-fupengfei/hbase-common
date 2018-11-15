@@ -3,10 +3,6 @@ package code.ponfee.hbase.model;
 import java.beans.Transient;
 import java.io.Serializable;
 
-import org.apache.commons.lang3.builder.CompareToBuilder;
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
-
 import code.ponfee.hbase.annotation.HbaseField;
 
 /**
@@ -67,17 +63,23 @@ public abstract class HbaseEntity<R extends Serializable & Comparable<? super R>
     }
 
     @Override
-    public int compareTo(HbaseEntity<R> o) {
-        if (o == null) {
-            return 1;
+    public int compareTo(HbaseEntity<R> other) {
+        if (this.rowKey == null) {
+            return 1; // natural order: null as last
+        } else if (other == null || other.rowKey == null) {
+            return -1;
+        } else {
+            return this.rowKey.compareTo(other.rowKey);
         }
-        return new CompareToBuilder().append(rowKey, o.rowKey)
-                                     .toComparison();
     }
 
     @Override
     public int hashCode() {
-        return new HashCodeBuilder().append(rowKey).toHashCode();
+        if (this.rowKey == null) {
+            return 0;
+        } else {
+            return this.rowKey.hashCode();
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -86,9 +88,13 @@ public abstract class HbaseEntity<R extends Serializable & Comparable<? super R>
         if (!(obj instanceof HbaseEntity)) {
             return false;
         }
-        return new EqualsBuilder()
-                .append(rowKey, ((HbaseEntity<R>) obj).rowKey)
-                .isEquals();
+
+        HbaseEntity<R> other;
+        if (this.rowKey == null 
+            || (other = (HbaseEntity<R>) obj).rowKey == null) {
+            return false;
+        }
+        return this.rowKey.equals(other.rowKey);
     }
 
     @Override

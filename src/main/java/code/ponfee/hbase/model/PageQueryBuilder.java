@@ -161,6 +161,24 @@ public class PageQueryBuilder {
         return this;
     }
 
+    /*public PageQueryBuilder range(String family, String qualifier,
+                                  byte[] min, boolean inclusiveMin,
+                                  byte[] max, boolean inclusiveMax) {
+        this.filters.addFilter(greater0(family, qualifier, min, inclusiveMin)); // >(=) min
+        this.filters.addFilter(less0(family, qualifier, max, inclusiveMax)); // <(=) max
+        return this;
+    }
+
+    public PageQueryBuilder notRange(String family, String qualifier,
+                                     byte[] min, boolean inclusiveMin,
+                                     byte[] max, boolean inclusiveMax) {
+        FilterList filters = new FilterList(FilterList.Operator.MUST_PASS_ONE);
+        filters.addFilter(less0(family, qualifier, min, !inclusiveMin)); // <(=) min
+        filters.addFilter(greater0(family, qualifier, max, !inclusiveMax)); // >(=) max
+        this.filters.addFilter(filters);
+        return this;
+    }*/
+
     // include min, exclude max
     public PageQueryBuilder range(String family, String qualifier, 
                                   byte[] min, byte[] max) {
@@ -173,7 +191,7 @@ public class PageQueryBuilder {
     public PageQueryBuilder notRange(String family, String qualifier,
                                      byte[] min, byte[] max) {
         FilterList filters = new FilterList(FilterList.Operator.MUST_PASS_ONE);
-        filters.addFilter(less0(family, qualifier, min, false)); // < min      (exclude)
+        filters.addFilter(less0(family, qualifier, min, false)); // < min     (exclude)
         filters.addFilter(greater0(family, qualifier, max, true)); // >= max  (include)
         this.filters.addFilter(filters);
         return this;
