@@ -46,15 +46,14 @@ public class HbaeDaoEntityTest extends BaseTest<ExtendsHbaseEntityDao>{
     @Test
     @Ignore
     public void batchPut() {
-        int count = 201;
         List<ExtendsHbaseEntity> batch = new ArrayList<>();
-        for (int start = 3, i = start; i < count + start; i++) {
+        for (int i = 0; i < 50; i++) {
             ExtendsHbaseEntity entity = new ExtendsHbaseEntity();
             //entity.setFirstName(RandomStringUtils.randomAlphabetic(3));
             //entity.setLastName(RandomStringUtils.randomAlphabetic(3));
             entity.setFirstName("fu");
             entity.setLastName("ponfee");
-            entity.setAge(ThreadLocalRandom.current().nextInt(60));
+            entity.setAge(ThreadLocalRandom.current().nextInt(60)+10);
             switch (new Random().nextInt(4)) {
                 case 0:
                     entity.setNonce(null);

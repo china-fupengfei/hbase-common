@@ -16,6 +16,7 @@ public class ExtendsHbaseEntity extends HbaseEntity<String> {
     private static final long serialVersionUID = -1701075762499122949L;
     private String firstName;
     private String lastName;
+    private String nonce;
     private int age;
 
     @HbaseField(format = "yyyyMMdd")
@@ -52,6 +53,14 @@ public class ExtendsHbaseEntity extends HbaseEntity<String> {
 
     public void setBirthday(Date birthday) {
         this.birthday = birthday;
+    }
+
+    public String getNonce() {
+        return nonce;
+    }
+
+    public void setNonce(String nonce) {
+        this.nonce = nonce;
     }
 
     @Override
