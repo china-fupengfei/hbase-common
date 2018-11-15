@@ -84,13 +84,13 @@ public class PageQueryBuilder {
         this.stopRowKey(stopRowKey, null);
     }
 
-    public void requireRowNum(boolean requireRowNum) {
-        this.requireRowNum = requireRowNum;
-    }
-
     public void stopRowKey(Object stopRowKey, Boolean inclusiveStopRow) {
         this.stopRowKey = stopRowKey;
         this.inclusiveStopRow = inclusiveStopRow;
+    }
+
+    public void requireRowNum(boolean requireRowNum) {
+        this.requireRowNum = requireRowNum;
     }
 
     public void addColumns(String family, String... qualifiers) {
@@ -161,20 +161,20 @@ public class PageQueryBuilder {
         return this;
     }
 
+    // include min, exclude max
     public PageQueryBuilder range(String family, String qualifier, 
-                                  byte[] min, boolean inclusiveMin,
-                                  byte[] max, boolean inclusiveMax) {
-        this.filters.addFilter(greater0(family, qualifier, min, inclusiveMin));
-        this.filters.addFilter(less0(family, qualifier, max, inclusiveMax));
+                                  byte[] min, byte[] max) {
+        this.filters.addFilter(greater0(family, qualifier, min, true)); // >= min  (include)
+        this.filters.addFilter(less0(family, qualifier, max, false)); // < max     (exclude)
         return this;
     }
 
+    // exclude min, include max
     public PageQueryBuilder notRange(String family, String qualifier,
-                                     byte[] min, boolean inclusiveMin,
-                                     byte[] max, boolean inclusiveMax) {
+                                     byte[] min, byte[] max) {
         FilterList filters = new FilterList(FilterList.Operator.MUST_PASS_ONE);
-        filters.addFilter(less0(family, qualifier, min, !inclusiveMin)); // <(=) min
-        filters.addFilter(greater0(family, qualifier, max, !inclusiveMax)); // >(=) max
+        filters.addFilter(less0(family, qualifier, min, false)); // < min      (exclude)
+        filters.addFilter(greater0(family, qualifier, max, true)); // >= max  (include)
         this.filters.addFilter(filters);
         return this;
     }

@@ -3,16 +3,19 @@ package code.ponfee.hbase.test;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
+import code.ponfee.commons.json.Jsons;
 import code.ponfee.commons.util.Dates;
 import code.ponfee.hbase.BaseTest;
 import code.ponfee.hbase.model.PageQueryBuilder;
@@ -52,6 +55,22 @@ public class HbaeDaoEntityTest extends BaseTest<ExtendsHbaseEntityDao>{
             entity.setFirstName("fu");
             entity.setLastName("ponfee");
             entity.setAge(ThreadLocalRandom.current().nextInt(60));
+            switch (new Random().nextInt(4)) {
+                case 0:
+                    entity.setNonce(null);
+                    break;
+                case 1:
+                    entity.setNonce("");
+                    break;
+                case 2:
+                    entity.setNonce(" ");
+                    break;
+                case 3:
+                    entity.setNonce(RandomStringUtils.randomAlphabetic(4));
+                    break;
+                default:
+                    break;
+            }
             entity.setBirthday(Dates.random(Dates.toDate("20000101", "yyyyMMdd")));
             entity.buildRowKey();
             batch.add(entity);
@@ -190,6 +209,52 @@ public class HbaeDaoEntityTest extends BaseTest<ExtendsHbaseEntityDao>{
     }
 
     @Test
+    public void all() {
+        consoleJson(getBean().all());
+    }
+
+    // -------------------------------------------------------------------------------page query
+    @Test
+    public void page1() {
+        PageQueryBuilder query = PageQueryBuilder.newBuilder(2000);
+        //query.addColumns("cf1", "age");
+        //query.startRowKey("fu_ponfee_20010105");
+        //query.stopRowKey( "fu_ponfee_20010313");
+        //query.startRowKey("fu_ponfee_20010105", true);
+        //query.stopRowKey( "fu_ponfee_20010313", true);
+        //query.requireRowNum(false);
+        //query.equals("cf1", "age", "26".getBytes());
+        //query.notEquals("cf1", "age", "26".getBytes());
+        //query.in("cf1", "age", new byte[][] {"26".getBytes(), "24".getBytes()});
+        //query.notIn("cf1", "age", new byte[][] {"26".getBytes(), "24".getBytes()});
+        //query.exists("cf1", "nonce");
+        //query.notExists("cf1", "nonce");
+        //query.greater("cf1", "age", "55".getBytes(), true);
+        //query.greater("cf1", "age", "55".getBytes(), false);
+        //query.less("cf1", "age", "10".getBytes(), true);
+        //query.less("cf1", "age", "10".getBytes(), false);
+        //query.regexp("cf1", "birthday", "2\\d{2}1\\d{4}");
+        //query.notRegexp("cf1", "birthday", "2\\d{2}1\\d{4}");
+        //query.prefix("cf1", "birthday", "2015".getBytes());
+        //query.notPrefix("cf1", "birthday", "2015".getBytes());
+        //query.like("cf1", "birthday", "060");
+        //query.notLike("cf1", "birthday", "060");
+        //query.rowKeyOnly();
+        //query.likeRowKey("060");
+        //query.notLikeRowKey("060");
+        //query.regexpRowKey("^fu_ponfee_2\\d{2}1.*1$");
+        //query.notRegexpRowKey("^fu_ponfee_2\\d{2}1.*1$");
+        //query.prefixRowKey("fu_ponfee_2006".getBytes());
+        //query.notPrefixRowKey("fu_ponfee_2006".getBytes());
+        //query.equalsRowKey("fu_ponfee_20000214".getBytes());
+        //query.notEqualsRowKey("fu_ponfee_20000214".getBytes());
+
+        query.range("cf1", "birthday", "20000213".getBytes(), "20000501".getBytes());
+        //query.notRange("cf1", "birthday", "20000213".getBytes(), "20000501".getBytes());
+        printJson(getBean().nextPage(query));
+    }
+    
+    @Test
     @Ignore
     public void delete() {
         consoleJson(getBean().get("fu_ponfee_20011031"));
@@ -197,5 +262,7 @@ public class HbaeDaoEntityTest extends BaseTest<ExtendsHbaseEntityDao>{
         consoleJson(getBean().get("fu_ponfee_20110531"));
     }
 
-
+    private static void printJson(Object obj) {
+        System.err.println(Jsons.NON_NULL.stringify(obj));
+    }
 }
