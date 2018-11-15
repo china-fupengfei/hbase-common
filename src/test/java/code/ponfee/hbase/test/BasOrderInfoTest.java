@@ -12,9 +12,9 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
+import code.ponfee.commons.model.PageSortOrder;
 import code.ponfee.hbase.BaseTest;
 import code.ponfee.hbase.model.PageQueryBuilder;
-import code.ponfee.hbase.model.PageSortOrder;
 import code.ponfee.hbase.other.BasOrderInfo;
 import code.ponfee.hbase.other.BasOrderInfoDao;
 

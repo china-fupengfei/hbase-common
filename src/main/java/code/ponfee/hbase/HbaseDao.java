@@ -73,6 +73,7 @@ import com.google.common.collect.Lists;
 import code.ponfee.commons.cache.DateProvider;
 import code.ponfee.commons.collect.ByteArrayWrapper;
 import code.ponfee.commons.math.Numbers;
+import code.ponfee.commons.model.PageSortOrder;
 import code.ponfee.commons.reflect.CglibUtils;
 import code.ponfee.commons.reflect.ClassUtils;
 import code.ponfee.commons.reflect.Fields;
@@ -84,7 +85,6 @@ import code.ponfee.hbase.annotation.HbaseTable;
 import code.ponfee.hbase.model.HbaseEntity;
 import code.ponfee.hbase.model.HbaseMap;
 import code.ponfee.hbase.model.PageQueryBuilder;
-import code.ponfee.hbase.model.PageSortOrder;
 
 /**
  * The Hbase dao common base class

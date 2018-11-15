@@ -24,6 +24,7 @@ import org.springframework.util.Assert;
 import com.google.common.base.Preconditions;
 
 import code.ponfee.commons.collect.Collects;
+import code.ponfee.commons.model.PageSortOrder;
 import code.ponfee.commons.util.Bytes;
 import code.ponfee.commons.util.ObjectUtils;
 
