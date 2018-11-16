@@ -1,6 +1,5 @@
 package code.ponfee.hbase.model;
 
-import java.beans.Transient;
 import java.io.Serializable;
 import java.util.HashMap;
 
@@ -22,31 +21,12 @@ public abstract class HbaseMap<V, R extends Comparable<? super R> & Serializable
     //public static final String TIMESTAMP_NAME = "timestamp";
     //public static final String SEQUENCE_ID_NAME = "sequenceId";
 
-    /**
-     * Returns the data object hbase rowkey, 
-     * sub class can override this methods
-     * 
-     * @return a rowkey
-     */
-    public R buildRowKey() {
-        return this.getRowKey();
-    }
-
-    /**
-     * Sub class can override this method
-     * 
-     * @return row key as string
-     */
-    public @Transient String getRowKeyAsString() {
-        R rowKey = getRowKey();
-        return rowKey == null ? null : rowKey.toString();
-    }
-
-    @SuppressWarnings("unchecked")
+    @Override @SuppressWarnings("unchecked")
     public final R getRowKey() {
         return (R) this.get(ROW_KEY_NAME);
     }
 
+    @Override
     public final int getRowNum() {
         V rowNum = this.get(ROW_NUM_NAME);
         if (rowNum == null) {
@@ -56,6 +36,16 @@ public abstract class HbaseMap<V, R extends Comparable<? super R> & Serializable
         } else {
             return Numbers.toInt(rowNum);
         }
+    }
+
+    @Override @SuppressWarnings("unchecked")
+    public final void setRowKey(R rowKey) {
+        this.put(ROW_KEY_NAME, (V) rowKey);
+    }
+
+    @Override @SuppressWarnings("unchecked")
+    public final void setRowNum(int rowNum) {
+        this.put(ROW_KEY_NAME, (V) (Integer) rowNum);
     }
 
     @Override

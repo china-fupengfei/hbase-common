@@ -3,6 +3,8 @@ package code.ponfee.hbase.model;
 import java.beans.Transient;
 import java.io.Serializable;
 
+import code.ponfee.hbase.HbaseDao;
+
 /**
  * The interface mapped by hbase table
  * 
@@ -25,6 +27,20 @@ public interface HbaseBean<R extends Comparable<? super R> & Serializable>
      */
     int getRowNum();
 
+    /**
+     * Sets row key to hbase bean
+     * 
+     * @param rowKey the hbase row key
+     */
+    void setRowKey(R rowKey);
+
+    /**
+     * Sets row number for page data list
+     * 
+     * @param rowNum the current page data list row number
+     */
+    void setRowNum(int rowNum);
+
     //int getTimestamp();
     //int getSequenceId();
 
@@ -43,10 +59,21 @@ public interface HbaseBean<R extends Comparable<? super R> & Serializable>
      * 
      * @return row key as string
      */
-    default @Transient String getRowKeyAsString() {
+    @Transient
+    default String getRowKeyAsString() {
         R rowKey;
         return (rowKey = getRowKey()) == null
                ? null : rowKey.toString();
+    }
+
+    /**
+     * Sub class can override this method
+     * 
+     * @return row key as string
+     */
+    @Transient
+    default byte[] getRowKeyAsBytes() {
+        return HbaseDao.toBytes(getRowKey());
     }
 
     // -------------------------------------------Comparable & Object

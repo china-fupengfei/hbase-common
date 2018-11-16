@@ -1,6 +1,5 @@
 package code.ponfee.hbase.model;
 
-import java.beans.Transient;
 import java.io.Serializable;
 
 import code.ponfee.hbase.annotation.HbaseField;
@@ -26,50 +25,38 @@ public abstract class HbaseEntity<R extends Serializable & Comparable<? super R>
     @HbaseField(ignore = true)
     protected int timestamp;*/
 
-    /**
-     * Returns the data object hbase rowkey, 
-     * sub class can override this methods
-     * 
-     * @return a rowkey
-     */
-    public R buildRowKey() {
-        return this.getRowKey();
-    }
-
-    /**
-     * Sub class can override this method
-     * 
-     * @return row key as string
-     */
-    public @Transient String getRowKeyAsString() {
-        return rowKey == null ? null : rowKey.toString();
-    }
-
-    public @Override final R getRowKey() {
+    @Override
+    public final R getRowKey() {
         return rowKey;
     }
 
-    public @Override final int getRowNum() {
+    @Override
+    public final int getRowNum() {
         return rowNum;
     }
 
-    public void setRowKey(R rowKey) {
+    @Override
+    public final void setRowKey(R rowKey) {
         this.rowKey = rowKey;
     }
 
-    public void setRowNum(int rowNum) {
+    @Override
+    public final void setRowNum(int rowNum) {
         this.rowNum = rowNum;
     }
 
-    public @Override int hashCode() {
+    @Override
+    public int hashCode() {
         return HbaseBean.super.hashCode0();
     }
 
-    public @Override boolean equals(Object obj) {
+    @Override
+    public boolean equals(Object obj) {
         return HbaseBean.super.equals0(obj);
     }
 
-    public @Override String toString() {
+    @Override
+    public String toString() {
         return HbaseBean.super.toString0();
     }
 

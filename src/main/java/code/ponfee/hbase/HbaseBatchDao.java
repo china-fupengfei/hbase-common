@@ -144,7 +144,7 @@ public abstract class HbaseBatchDao<T extends HbaseBean<R>, R extends Serializab
             page = this.nextPage(query);
             size = page == null ? 0 : page.size();
             if (size > 0) {
-                query.startRowKey(super.getRowKey(query.nextPageStartRow(page)), false);
+                query.startRowKey(query.nextPageStartRow(page).getRowKey(), false);
                 consumer.accept(++pageNum, page);
             }
             logger.info("==================Scroll Query at round {}==================", pageNum);
