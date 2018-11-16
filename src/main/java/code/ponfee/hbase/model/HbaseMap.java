@@ -11,8 +11,8 @@ import code.ponfee.commons.math.Numbers;
  * 
  * @author Ponfee
  */
-public abstract class HbaseMap<V, R extends Serializable & Comparable<? super R>>
-    extends HashMap<String, V> implements Comparable<HbaseMap<V, R>> {
+public abstract class HbaseMap<V, R extends Comparable<? super R> & Serializable>
+    extends HashMap<String, V> implements HbaseBean<R> {
 
     private static final long serialVersionUID = 2482090979352032846L;
 
@@ -59,57 +59,18 @@ public abstract class HbaseMap<V, R extends Serializable & Comparable<? super R>
     }
 
     @Override
-    public int compareTo(HbaseMap<V, R> other) {
-        R tkey, okey;
-        if ((tkey = this.getRowKey()) == null) {
-            return 1;
-        } else if (other == null
-            || (okey = other.getRowKey()) == null) {
-            return -1;
-        } else {
-            return tkey.compareTo(okey);
-        }
-        /*return new CompareToBuilder()
-            .append(this.getRowKey(), other.getRowKey())
-            .toComparison();*/
-    }
-
-    @Override
     public int hashCode() {
-        R rowKey;
-        if ((rowKey = this.getRowKey()) == null) {
-            return 0;
-        } else {
-            return rowKey.hashCode();
-        }
-        /*return new HashCodeBuilder()
-            .append(this.getRowKey())
-            .toHashCode();*/
+        return HbaseBean.super.hashCode0();
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public boolean equals(Object obj) {
-        if (!(obj instanceof HbaseMap)) {
-            return false;
-        }
-
-        R tkey, okey;
-        if ((tkey = this.getRowKey()) == null 
-            || (okey = ((HbaseMap<?, R>) obj).getRowKey()) == null) {
-            return false;
-        } else {
-            return tkey.equals(okey);
-        }
-        /*return new EqualsBuilder()
-                .append(this.getRowKey(), ((HbaseMap<?, R>) obj)
-                .getRowKey()).isEquals();*/
+        return HbaseBean.super.equals0(obj);
     }
 
     @Override
     public String toString() {
-        return getClass().getName() + "@" + this.getRowKey();
-        //return new ToStringBuilder(this).toString();
+        return HbaseBean.super.toString0();
     }
 
 }

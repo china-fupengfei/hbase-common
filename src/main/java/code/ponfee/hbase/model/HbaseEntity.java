@@ -11,7 +11,7 @@ import code.ponfee.hbase.annotation.HbaseField;
  * @author Ponfee
  */
 public abstract class HbaseEntity<R extends Serializable & Comparable<? super R>>
-    implements Serializable, Comparable<HbaseEntity<R>> {
+    implements HbaseBean<R> {
 
     private static final long serialVersionUID = 2467942701509706341L;
 
@@ -23,7 +23,6 @@ public abstract class HbaseEntity<R extends Serializable & Comparable<? super R>
 
     /*@HbaseField(ignore = true)
     protected int sequenceId;
-
     @HbaseField(ignore = true)
     protected int timestamp;*/
 
@@ -46,11 +45,11 @@ public abstract class HbaseEntity<R extends Serializable & Comparable<? super R>
         return rowKey == null ? null : rowKey.toString();
     }
 
-    public R getRowKey() {
+    public @Override final R getRowKey() {
         return rowKey;
     }
 
-    public int getRowNum() {
+    public @Override final int getRowNum() {
         return rowNum;
     }
 
@@ -62,44 +61,16 @@ public abstract class HbaseEntity<R extends Serializable & Comparable<? super R>
         this.rowNum = rowNum;
     }
 
-    @Override
-    public int compareTo(HbaseEntity<R> other) {
-        if (this.rowKey == null) {
-            return 1; // natural order: null as last
-        } else if (other == null || other.rowKey == null) {
-            return -1;
-        } else {
-            return this.rowKey.compareTo(other.rowKey);
-        }
+    public @Override int hashCode() {
+        return HbaseBean.super.hashCode0();
     }
 
-    @Override
-    public int hashCode() {
-        if (this.rowKey == null) {
-            return 0;
-        } else {
-            return this.rowKey.hashCode();
-        }
+    public @Override boolean equals(Object obj) {
+        return HbaseBean.super.equals0(obj);
     }
 
-    @SuppressWarnings("unchecked")
-    @Override
-    public boolean equals(Object obj) {
-        if (!(obj instanceof HbaseEntity)) {
-            return false;
-        }
-
-        HbaseEntity<R> other;
-        if (this.rowKey == null 
-            || (other = (HbaseEntity<R>) obj).rowKey == null) {
-            return false;
-        }
-        return this.rowKey.equals(other.rowKey);
-    }
-
-    @Override
-    public String toString() {
-        return getClass().getName() + "@" + rowKey;
+    public @Override String toString() {
+        return HbaseBean.super.toString0();
     }
 
 }

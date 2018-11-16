@@ -82,6 +82,7 @@ import code.ponfee.commons.serial.Serializations;
 import code.ponfee.commons.util.ObjectUtils;
 import code.ponfee.hbase.annotation.HbaseField;
 import code.ponfee.hbase.annotation.HbaseTable;
+import code.ponfee.hbase.model.HbaseBean;
 import code.ponfee.hbase.model.HbaseEntity;
 import code.ponfee.hbase.model.HbaseMap;
 import code.ponfee.hbase.model.PageQueryBuilder;
@@ -91,7 +92,7 @@ import code.ponfee.hbase.model.PageQueryBuilder;
  * 
  * @author Ponfee
  */
-public abstract class HbaseDao<T, R extends Serializable & Comparable<R>> {
+public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & Comparable<? super R>> {
 
     private static Logger logger = LoggerFactory.getLogger(HbaseDao.class);
 
@@ -768,6 +769,7 @@ public abstract class HbaseDao<T, R extends Serializable & Comparable<R>> {
         // sort result
         Comparator<R> c = reversed ? Comparator.reverseOrder() : Comparator.naturalOrder();
         result.sort(Comparator.comparing(this::getRowKey, Comparator.nullsLast(c)));
+        //result.sort(Comparator.comparing(Function.identity(), Comparator.nullsLast(Comparator.naturalOrder())));
 
         if (CollectionUtils.isNotEmpty(result) && !inclusiveStartRow 
             && Arrays.equals(toBytes(startRow), getRowKeyAsBytes(result.get(0)))) {
@@ -1053,7 +1055,7 @@ public abstract class HbaseDao<T, R extends Serializable & Comparable<R>> {
     }
 
     @SuppressWarnings("unchecked")
-    private static <T, R extends Serializable & Comparable<R>> void 
+    private static <T, R extends Serializable & Comparable<?super R>> void 
         setRowNum(T t, int rowNum) {
         if (t instanceof HbaseEntity) {
             ((HbaseEntity<R>) t).setRowNum(rowNum);

@@ -29,6 +29,7 @@ import org.springframework.data.hadoop.hbase.HbaseTemplate;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import code.ponfee.commons.collect.ByteArrayWrapper;
+import code.ponfee.hbase.model.HbaseBean;
 import code.ponfee.hbase.model.PageQueryBuilder;
 
 /**
@@ -39,7 +40,7 @@ import code.ponfee.hbase.model.PageQueryBuilder;
  * 
  * @author Ponfee
  */
-public abstract class HbaseBatchDao<T, R extends Serializable & Comparable<R>> 
+public abstract class HbaseBatchDao<T extends HbaseBean<R>, R extends Serializable & Comparable<? super R>> 
     extends HbaseDao<T, R> {
 
     private static Logger logger = LoggerFactory.getLogger(HbaseBatchDao.class);
@@ -89,7 +90,7 @@ public abstract class HbaseBatchDao<T, R extends Serializable & Comparable<R>>
     }
 
     // ------------------------------------------------------------------------batch copy
-    public <E, U extends Serializable & Comparable<U>> boolean copy(
+    public <E extends HbaseBean<U>, U extends Serializable & Comparable<? super U>> boolean copy(
         PageQueryBuilder query, HbaseDao<E, U> target, Consumer<E> callback) {
         return copy(query, target, callback, taskExecutor.getThreadPoolExecutor());
     }
@@ -103,7 +104,7 @@ public abstract class HbaseBatchDao<T, R extends Serializable & Comparable<R>>
      * @param threadPoolExecutor the threadPoolExecutor
      * @return {@code true} copy normal
      */
-    public <E, U extends Serializable & Comparable<U>> boolean copy(
+    public <E extends HbaseBean<U>, U extends Serializable & Comparable<? super U>> boolean copy(
         PageQueryBuilder query, HbaseDao<E, U> target,
         Consumer<E> callback, ThreadPoolExecutor threadPoolExecutor) {
         AtomicInteger round = new AtomicInteger(0);
@@ -249,7 +250,7 @@ public abstract class HbaseBatchDao<T, R extends Serializable & Comparable<R>>
      * @param <E>
      * @param <U>
      */
-    private static final class AsnycBatchPut<E, U extends Serializable & Comparable<U>> 
+    private static final class AsnycBatchPut<E extends HbaseBean<U>, U extends Serializable & Comparable<? super U>> 
         implements Callable<Boolean> {
         final HbaseDao<E, U> dao;
         final List<E> data;
