@@ -9,10 +9,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionService;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorCompletionService;
-import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.BiConsumer;
@@ -29,6 +28,7 @@ import org.springframework.data.hadoop.hbase.HbaseTemplate;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import code.ponfee.commons.collect.ByteArrayWrapper;
+import code.ponfee.commons.concurrent.MultithreadExecutor;
 import code.ponfee.hbase.model.HbaseBean;
 import code.ponfee.hbase.model.PageQueryBuilder;
 
@@ -198,22 +198,17 @@ public abstract class HbaseBatchDao<T extends HbaseBean<R>, R extends Serializab
 
     private static boolean join(CompletionService<Boolean> service, 
                                 int round, String operation) {
-        boolean result = true;
         try {
-            while (round > 0) {
-                Future<Boolean> future = service.poll();
-                if (future != null) {
-                    round--;
-                    result &= future.get();
-                } else {
-                    Thread.sleep(31);
-                }
-            }
-        } catch (InterruptedException | ExecutionException e) {
+            AtomicBoolean result = new AtomicBoolean(true);
+            MultithreadExecutor.join(
+                service, round, 
+                b -> result.set(result.get() & b), 31
+            );
+            return result.get();
+        } catch (Exception e) {
             logger.error("Batch {} occur error", operation, e);
-            result = false;
+            return false;
         }
-        return result;
     }
 
     /**

@@ -143,13 +143,13 @@ public class CopyOrderInfoTest extends BaseTest<CopyOrderInfoDao> {
     @Test
     public void previousRowKey2() {
         // a20160402_S1604050001672_03.24.3241104-P
-        consoleJson(basHbaseDao.previousRowKey("a", "a20160402_", 50));
+        consoleJson(basHbaseDao.maxRowKey("a", "a20160402_", 50));
 
         // a20180926_S1809260015952_07.07.7705017
-        consoleJson(basHbaseDao.previousRowKey("a", "a20460400_", 50));
+        consoleJson(basHbaseDao.maxRowKey("a", "a20460400_", 50));
 
         // a20000402_
-        consoleJson(basHbaseDao.previousRowKey("a", "a20000402_", 50));
+        consoleJson(basHbaseDao.maxRowKey("a", "a20000402_", 50));
     }
 
     @Test

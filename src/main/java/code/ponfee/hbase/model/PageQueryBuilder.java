@@ -48,8 +48,6 @@ public class PageQueryBuilder {
     private Map<String, String[]> famQuaes; // query the spec family and qualifier
     private final FilterList filters = new FilterList(Operator.MUST_PASS_ALL);
 
-    //private int maxResultSize = -1;
-
     private boolean requireRowNum = true; // whether include row number
 
     private PageQueryBuilder(int pageSize, PageSortOrder sortOrder) {
@@ -273,6 +271,12 @@ public class PageQueryBuilder {
 
     public PageQueryBuilder notEqualsRowKey(byte[] rowKey) {
         this.filters.addFilter(equalsKey(rowKey, false));
+        return this;
+    }
+
+    // ---------------------------------------------------------custome filter
+    public PageQueryBuilder customeFilter(Filter filter) {
+        this.filters.addFilter(filter);
         return this;
     }
 

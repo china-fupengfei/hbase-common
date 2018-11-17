@@ -6,12 +6,12 @@ import java.io.Serializable;
 import code.ponfee.hbase.HbaseDao;
 
 /**
- * The interface mapped by hbase table
+ * Base mapped by hbase table
  * 
  * @author Ponfee
  */
 public interface HbaseBean<R extends Comparable<? super R> & Serializable>
-    extends Comparable<HbaseBean<R>>, java.io.Serializable {
+    extends Comparable<HbaseBean<R>>, Serializable {
 
     /**
      * Returns the hbase row key
@@ -80,7 +80,7 @@ public interface HbaseBean<R extends Comparable<? super R> & Serializable>
     default @Override int compareTo(HbaseBean<R> other) {
         R tkey, okey;
         if ((tkey = this.getRowKey()) == null) {
-            return 1;
+            return 1; // null last
         } else if (other == null
             || (okey = other.getRowKey()) == null) {
             return -1;

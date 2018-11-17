@@ -541,7 +541,7 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
     }
 
     /**
-     * Gets the previous rowkey from start rowkey
+     * Gets the previous rowkey from start rowkey within rowkey prefix
      * 
      * @param rowKeyPrefix the key prefix
      * @param startRowKey the start rowkey
@@ -552,14 +552,14 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
     }
 
     /**
-     * Gets the previous rowkey from start rowkey
+     * Gets the max rowkey from start rowkey within rowkey prefix
      * 
      * @param rowKeyPrefix the key prefix
      * @param startRowKey the start rowkey
      * @param paddingLength appending length start rowkey with 0xff
      * @return a previous rowkey relatively start rowkey
      */
-    public String previousRowKey(String rowKeyPrefix, String startRowKey, int paddingLength) {
+    public String maxRowKey(String rowKeyPrefix, String startRowKey, int paddingLength) {
         byte[] startRowKeyBytes = HbaseHelper.paddingStopRowKey(startRowKey, paddingLength);
         Object rowKey = nearRowKey(rowKeyPrefix, startRowKeyBytes, false);
         return (rowKey instanceof String) ? (String) rowKey : startRowKey;
@@ -807,11 +807,6 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
 
     protected ScanHook pageScanHook(PageQueryBuilder query) {
         return scan -> {
-            // filters
-            // 提取rowkey以01结尾数据： new RowFilter(CompareOp.EQUAL, new RegexStringComparator(".*01$"));
-            // 提取rowkey以包含201407的数据：new RowFilter(CompareOp.EQUAL, new SubstringComparator("201407"));
-            // 提取rowkey以123开头的数据：new RowFilter(CompareOp.EQUAL, new BinaryPrefixComparator("123".getBytes()));
-            //FilterList filters = new FilterList(Operator.MUST_PASS_ALL);
             FilterList filters = query.filters();
             byte[] stopRowBytes = toBytes(query.stopRowKey());
             if (ArrayUtils.isNotEmpty(stopRowBytes) && query.inclusiveStopRow()) {
@@ -956,7 +951,7 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
                 return toBytes(FastDateFormat.getInstance(hf.format()[0]).format(value));
             }
         } else {
-            return toBytes(value.toString()); // to string as byte array
+            return toBytes(value.toString()); // first to string and the to byte array
         }
     }
 
@@ -1044,8 +1039,8 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
                 throw new RuntimeException(e);
             }
         } else {
-            String str;
-            if (isEmpty(str = obj.toString())) { // first to string then to byte array
+            String str; // first to string and then to byte array
+            if (isEmpty(str = obj.toString())) {
                 return code.ponfee.commons.util.Bytes.EMPTY_BYTES;
             }
             return Bytes.toBytes(str);
