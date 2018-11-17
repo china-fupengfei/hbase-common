@@ -1,6 +1,7 @@
 package code.ponfee.hbase;
 
 import static code.ponfee.hbase.model.HbaseMap.ROW_KEY_NAME;
+import static code.ponfee.hbase.model.HbaseMap.ROW_NUM_NAME;
 import static com.google.common.base.CaseFormat.LOWER_CAMEL;
 import static com.google.common.base.CaseFormat.LOWER_UNDERSCORE;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
@@ -8,6 +9,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import static org.apache.commons.lang3.StringUtils.substringBefore;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
@@ -18,9 +20,11 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -36,7 +40,8 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.apache.commons.lang3.time.FastDateFormat;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.CellUtil;
+import static org.apache.hadoop.hbase.CellUtil.cloneValue;
+import static org.apache.hadoop.hbase.CellUtil.cloneQualifier;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.NamespaceDescriptor;
@@ -90,6 +95,8 @@ import code.ponfee.hbase.model.PageQueryBuilder;
  * The Hbase dao common base class
  * 
  * @author Ponfee
+ * @param <T> the HbaseBean(HbaseEntity or HbaseMap)
+ * @param <R> the hbase rowkey of HbaseBean(HbaseEntity or HbaseMap)
  */
 public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & Comparable<? super R>> {
 
@@ -97,15 +104,18 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
 
     //private static final DateProvider PROVIDER = DateProvider.CURRENT;
     private static final DateProvider PROVIDER = DateProvider.LATEST;
+    public static final byte[] EMPTY_BYTES = {}; // new byte[0]
 
-    protected final Class<T> classType;
-    protected final Class<R> rowKeyType;
-    protected final ImmutableBiMap<String, Field> fieldMap;
+    private final Class<T> classType;
+    private final RowMapper<T> rowMapper;
+    private final Class<R> rowKeyType;
+    private final boolean wrappedBytesRowKey;
+    private final ImmutableBiMap<String, Field> fieldMap;
+    private final String globalFamily; // table(class)-level family name
+    private final List<byte[]> definedFamilies;
+    private final boolean serialRowKey;
+
     protected final String tableName;
-    protected final String globalFamily; // table(class)-level family name
-    protected final List<byte[]> definedFamilies;
-    protected final boolean serialRowKey;
-
     protected @Resource HbaseTemplate template;
 
     @SuppressWarnings("unchecked")
@@ -128,7 +138,44 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
             );
         }
 
+        rowMapper = (result, rowNum) -> {
+            if (result.isEmpty()) {
+                return null;
+            }
+
+            T bean = classType.newInstance();
+            bean.setRowKey(deserialRowKey(result.getRow()));
+            // CellUtil.cloneFamily(cell), cell.getTimestamp(), cell.getSequenceId()
+            if (bean instanceof HbaseEntity) {
+                result.listCells().stream().forEach(cell -> {
+                    setValue(bean, Bytes.toString(cloneQualifier(cell)), cloneValue(cell));
+                });
+            } else if (bean instanceof HbaseMap) {
+                HbaseMap<Object, R> map = (HbaseMap<Object, R>) bean;
+                result.listCells().stream().forEach(cell -> {
+                    // HbaseMap only support string value
+                    map.put(Bytes.toString(cloneQualifier(cell)), 
+                            Bytes.toString(cloneValue(cell)));
+                });
+            } else {
+                throw new UnsupportedOperationException(
+                    "Unsupported type: " + classType.getCanonicalName()
+                );
+            }
+            return bean;
+        };
+
+        // row key type
         this.rowKeyType = GenericUtils.getActualTypeArgument(clazz, 1);
+        boolean flag;
+        try {
+            rowKeyType.getConstructor(byte[].class).newInstance(new byte[] { 0x00 });
+            flag = true; // is wrapped
+        } catch (Exception e) {
+            flag = false; // not wrapped
+        }
+        wrappedBytesRowKey = flag;
+
         this.fieldMap = ImmutableBiMap.<String, Field> builder().putAll(
             ClassUtils.listFields(this.classType).stream().collect(
                 Collectors.toMap(f -> {
@@ -140,11 +187,12 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
             )
         ).build();
 
-        // table name
+        // table name, if not defined in annotation then 
+        // defaults lower underscore name of class name 
         HbaseTable ht = this.classType.getDeclaredAnnotation(HbaseTable.class);
         String tableName = (ht != null && isNotEmpty(ht.tableName())) 
                            ? ht.tableName()
-                           : LOWER_CAMEL.to(LOWER_UNDERSCORE, clazz.getSimpleName()); // 类名的下划线表示
+                           : LOWER_CAMEL.to(LOWER_UNDERSCORE, clazz.getSimpleName());
         this.tableName = buildTableName(ht.namespace(), tableName);
 
         this.serialRowKey = ht == null ? false : ht.serialRowKey();
@@ -181,9 +229,11 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
             if (Map.class.isAssignableFrom(this.classType) && Map.class.isInstance(from)) {
                 ((Map) to).putAll((Map<?, ?>) from);
             } else if (Map.class.isAssignableFrom(this.classType)) {
-                ((Map) to).putAll(ObjectUtils.bean2map(from));
+                //((Map) to).putAll(ObjectUtils.bean2map(from));
+                ((Map) to).putAll(CglibUtils.bean2map(from));
             } else if (Map.class.isInstance(from)) {
-                ObjectUtils.map2bean((Map) from, to);
+                //ObjectUtils.map2bean((Map) from, to);
+                CglibUtils.map2bean((Map) from, to);
             } else {
                 CglibUtils.copyProperties(from, to);
             }
@@ -402,7 +452,7 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
      */
     public T get(String rowKey, String familyName, String qualifier) {
         return template.get(tableName, rowKey, familyName, 
-                            qualifier, asRowMapper());
+                            qualifier, rowMapper);
     }
 
     // ------------------------------------------------------------------find data list
@@ -647,41 +697,49 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
         return template.execute(tableName, table -> {
             List<Put> batch = new ArrayList<>(data.size());
             long now = PROVIDER.now();
-            byte[] fam = toBytes(familyName);
+            byte[] fam = toBytes(familyName), rowKey;
             for (T obj : data) {
+                if (ArrayUtils.isEmpty(rowKey = serialRowKey(obj.getRowKey()))) {
+                    continue;
+                }
+                Put put = new Put(rowKey);
+
                 if (obj instanceof HbaseEntity) {
                     HbaseEntity<R> entity = (HbaseEntity<R>) obj;
-                    Put put = new Put(serialRowKey(entity.getRowKey()));
                     this.fieldMap.values().stream().forEach(field -> {
                         HbaseField hf = field.getDeclaredAnnotation(HbaseField.class);
-                        if (hf != null && hf.ignore()) { // 忽略的字段
-                            return;
+                        if (hf != null && hf.ignore()) {
+                            return; // ignored field
                         }
-                        byte[] family = getFamily(fam, hf, field);
-                        byte[] qualifier = getQualifier(field);
-                        byte[] value = toBytes(getValue(entity, field, hf));
-                        put.addColumn(family, qualifier, now, value);
+                        byte[] value = getValue(entity, field, hf);
+                        if (value != null) {
+                            put.addColumn(getFamily(fam, hf, field), getQualifier(field), now, value);
+                        }
                     });
-                    if (!put.isEmpty()) {
-                        batch.add(put);
-                    }
                 } else if (obj instanceof HbaseMap) {
-                    HbaseMap<V, R> map = (HbaseMap<V, R>) obj;
                     byte[] family = getFamily(fam, null, null);
                     if (family == null) {
                         throw new IllegalArgumentException("Family cannot be null.");
                     }
-                    Put put = new Put(serialRowKey(map.getRowKey()));
-                    map.entrySet().stream().filter(
-                        e -> isNotEmpty(e.getKey()) && !ROW_KEY_NAME.equals(e.getKey())
-                    ).forEach(entry -> {
-                        put.addColumn(family, toBytes(entry.getKey()), now, toBytes(entry.getValue()));
-                    });
-                    if (!put.isEmpty()) {
-                        batch.add(put);
+                    HbaseMap<V, R> map = (HbaseMap<V, R>) obj;
+                    for (Iterator<Entry<String, V>> iter = map.entrySet().iterator(); iter.hasNext();) {
+                        Entry<String, V> e = iter.next(); String name; Object value;
+                        if (   isEmpty(name = e.getKey()) 
+                            || ROW_KEY_NAME.equals(name)
+                            || ROW_NUM_NAME.equals(name)
+                            || (value = e.getValue()) == null) {
+                            continue;
+                        }
+                        // HbaseMap only support string value
+                        put.addColumn(family, toBytes(name), now, toBytes(value.toString()));
                     }
                 } else {
-                    throw new UnsupportedOperationException("Unsupported type: " + classType.getCanonicalName());
+                    throw new UnsupportedOperationException(
+                        "Unsupported type: " + classType.getCanonicalName()
+                    );
+                }
+                if (!put.isEmpty()) {
+                    batch.add(put);
                 }
             }
 
@@ -723,56 +781,7 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
         });
     }
 
-    // ------------------------------------------------------------------private methods
-    private Object nearRowKey(String rowKeyPrefix, Object startRowKey, boolean isNext) {
-        PageQueryBuilder query = PageQueryBuilder.newBuilder(1, PageSortOrder.ASC);
-        query.prefixRowKey(toBytes(rowKeyPrefix));
-        query.startRowKey(startRowKey);
-        List<T> result = isNext ? nextPage(query) : previousPage(query);
-        return CollectionUtils.isEmpty(result)
-               ? startRowKey : result.get(0).getRowKeyAsString();
-    }
-
-    private List<T> find(Object startRow, Object stopRow, int pageSize, boolean reversed, 
-                         ScanHook scanHook, boolean inclusiveStartRow) {
-        Scan scan = buildScan(startRow, stopRow, pageSize, reversed, scanHook);
-        List<T> result = template.find(tableName, scan, asRowMapper());
-
-        // sort result
-        Comparator<R> c = reversed ? Comparator.reverseOrder() : Comparator.naturalOrder();
-        result.sort(Comparator.comparing(HbaseBean::getRowKey, Comparator.nullsLast(c)));
-        //result.sort(Comparator.comparing(Function.identity(), Comparator.nullsLast(Comparator.naturalOrder())));
-
-        if (CollectionUtils.isNotEmpty(result) && !inclusiveStartRow 
-            && Arrays.equals(toBytes(startRow), result.get(0).getRowKeyAsBytes())) {
-            result = result.subList(1, result.size()); // first is the start row
-        }
-        return result;
-    }
-
-    private List<T> page(PageQueryBuilder query, boolean isNextPage, boolean reversed) {
-        List<T> result = find(query.startRowKey(), query.stopRowKey(), 
-                              query.actualPageSize(), reversed, 
-                              pageScanHook(query), query.inclusiveStartRow());
-        if (CollectionUtils.isNotEmpty(result)) {
-            if (result.size() > query.pageSize()) {
-                // the data from multiple region server 
-                result = result.subList(0, query.pageSize());
-            }
-
-            if (!isNextPage) {
-                Collections.reverse(result); // previous page
-            }
-
-            if (query.requireRowNum()) {
-                for (int i = 0, n = result.size(); i < n; i++) {
-                    result.get(i).setRowNum(i);
-                }
-            }
-        }
-        return result;
-    }
-
+    // ------------------------------------------------------------------protected methods
     protected Scan buildScan(Object startRow, Object stopRow, int pageSize,
                              boolean reversed, ScanHook scanHook) {
         Scan scan = new Scan();
@@ -837,39 +846,58 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
         };
     }
 
-    private void addDefinedFamilies(Scan scan) {
-        definedFamilies.stream().forEach(family -> scan.addFamily(family));
+    // ------------------------------------------------------------------private methods
+    private Object nearRowKey(String rowKeyPrefix, Object startRowKey, boolean isNext) {
+        PageQueryBuilder query = PageQueryBuilder.newBuilder(1, PageSortOrder.ASC);
+        query.prefixRowKey(toBytes(rowKeyPrefix));
+        query.startRowKey(startRowKey);
+        List<T> result = isNext ? nextPage(query) : previousPage(query);
+        return CollectionUtils.isEmpty(result)
+               ? startRowKey : result.get(0).getRowKeyAsString();
     }
 
-    @SuppressWarnings("unchecked")
-    private RowMapper<T> asRowMapper() {
-        return (result, rowNum) -> {
-            if (result.isEmpty()) {
-                return null;
+    private List<T> find(Object startRow, Object stopRow, int pageSize, boolean reversed, 
+                         ScanHook scanHook, boolean inclusiveStartRow) {
+        Scan scan = buildScan(startRow, stopRow, pageSize, reversed, scanHook);
+        List<T> result = template.find(tableName, scan, rowMapper);
+
+        // sort result
+        Comparator<R> c = reversed ? Comparator.reverseOrder() : Comparator.naturalOrder();
+        result.sort(Comparator.comparing(HbaseBean::getRowKey, Comparator.nullsLast(c)));
+        //result.sort(Comparator.comparing(Function.identity(), Comparator.nullsLast(Comparator.naturalOrder())));
+
+        if (CollectionUtils.isNotEmpty(result) && !inclusiveStartRow 
+            && Arrays.equals(toBytes(startRow), result.get(0).getRowKeyAsBytes())) {
+            result = result.subList(1, result.size()); // first is the start row
+        }
+        return result;
+    }
+
+    private List<T> page(PageQueryBuilder query, boolean isNextPage, boolean reversed) {
+        List<T> result = find(query.startRowKey(), query.stopRowKey(), 
+                              query.actualPageSize(), reversed, 
+                              pageScanHook(query), query.inclusiveStartRow());
+        if (CollectionUtils.isNotEmpty(result)) {
+            if (result.size() > query.pageSize()) {
+                // the data from multiple region server 
+                result = result.subList(0, query.pageSize());
             }
 
-            Object model = classType.newInstance();
-            R rowKey = deserialRowKey(result.getRow());
-            if (HbaseEntity.class.isAssignableFrom(classType)) {
-                HbaseEntity<R> entity = (HbaseEntity<R>) model;
-                entity.setRowKey(rowKey);
-                result.listCells().stream().forEach(cell -> {
-                    // CellUtil.cloneFamily(cell), cell.getTimestamp(), cell.getSequenceId()
-                    setValue(entity, Bytes.toString(CellUtil.cloneQualifier(cell)), CellUtil.cloneValue(cell));
-                });
-                return (T) entity;
-            } else if (HbaseMap.class.isAssignableFrom(classType)) {
-                HbaseMap<Object, R> map = (HbaseMap<Object, R>) model;
-                map.setRowKey(rowKey);
-                result.listCells().stream().forEach(cell -> {
-                    map.put(Bytes.toString(CellUtil.cloneQualifier(cell)), 
-                            Bytes.toString(CellUtil.cloneValue(cell)));
-                });
-                return (T) map;
-            } else {
-                throw new UnsupportedOperationException("Unsupported type: " + classType.getCanonicalName());
+            if (!isNextPage) {
+                Collections.reverse(result); // previous page
             }
-        };
+
+            if (query.requireRowNum()) {
+                for (int i = 0, n = result.size(); i < n; i++) {
+                    result.get(i).setRowNum(i);
+                }
+            }
+        }
+        return result;
+    }
+
+    private void addDefinedFamilies(Scan scan) {
+        definedFamilies.stream().forEach(family -> scan.addFamily(family));
     }
 
     /**
@@ -886,7 +914,7 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
         } else if (hf != null && isNotEmpty(hf.family())) {
             return toBytes(hf.family());
         } else if (!definedFamilies.isEmpty()) {
-            return definedFamilies.get(0);
+            return definedFamilies.get(0); // global family
         } else if (field != null) {
             return toBytes(LOWER_CAMEL.to(LOWER_UNDERSCORE, field.getName()));
         } else {
@@ -912,112 +940,116 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
 
     @SuppressWarnings("unchecked")
     private R deserialRowKey(byte[] rowKey) {
-        R key;
         if (rowKey == null) {
-            key = null;
+            return null;
         } else if (serialRowKey) {
-            key = (R) Serializations.deserialize(rowKey, this.rowKeyType);
-        } else if (this.rowKeyType.equals(byte[].class)) {
-            key = (R) ((Object) rowKey);
-        } else if (this.rowKeyType.equals(String.class)) {
-            key = (R) Bytes.toString(rowKey);
-        } else if (this.rowKeyType.equals(ByteArrayWrapper.class)) {
-            key = (R) new ByteArrayWrapper(rowKey);
+            return (R) Serializations.deserialize(rowKey, rowKeyType);
+        } else if (rowKeyType == byte[].class) {
+            return (R) rowKey;
+        } else if (rowKeyType == String.class) {
+            return (R) Bytes.toString(rowKey);
+        } else if (rowKeyType == ByteArrayWrapper.class) {
+            return (R) new ByteArrayWrapper(rowKey);
+        } else if (rowKeyType == Date.class) {
+            return (R) new Date(Bytes.toLong(rowKey));
+        } else if (rowKeyType == ByteArrayInputStream.class) {
+            return (R) new ByteArrayInputStream(rowKey);
         } else {
-            try {
-                key = (R) this.rowKeyType.getConstructor(byte[].class).newInstance(rowKey);
+            if (wrappedBytesRowKey) try {
+                return (R) rowKeyType.getConstructor(byte[].class).newInstance(rowKey);
             } catch (Exception e) {
-                // first to string, then convert to target type
-                key = (R) ObjectUtils.convert(Bytes.toString(rowKey), this.rowKeyType);
+                // not wrapped
             }
+            // first to string, then convert to target type
+            return (R) ObjectUtils.convert(Bytes.toString(rowKey), rowKeyType);
         }
-        return key;
     }
 
+    // for HbaseEntity
     private static byte[] getValue(Object target, Field field, HbaseField hf) {
         Object value = Fields.get(target, field);
         if (value == null) {
             return null;
-        } else if (hf != null && hf.serial()) {
-            return Serializations.serialize(value);
-        } else if ( hf != null && ArrayUtils.isNotEmpty(hf.format()) 
-                 && Date.class.isInstance(value)
-        ) {
-            // HbaseField meta data
-            if (hf.format().length == 1
-                && HbaseField.FORMAT_TIMESTAMP.equalsIgnoreCase(hf.format()[0])) {
-                return toBytes(Long.toString(((Date) value).getTime())); // timestamp string as byte array
-            } else {
-                return toBytes(FastDateFormat.getInstance(hf.format()[0]).format(value));
-            }
-        } else {
-            return toBytes(value.toString()); // first to string and the to byte array
         }
+        if (hf != null) {
+            if (hf.serial()) {
+                return Serializations.serialize(value);
+            }
+            if ((value instanceof Date) && ArrayUtils.isNotEmpty(hf.format())) {
+                if (hf.format().length == 1
+                    && HbaseField.FORMAT_TIMESTAMP.equalsIgnoreCase(hf.format()[0])) {
+                    // first to timestamp string then as byte array
+                    return toBytes(Long.toString(((Date) value).getTime()));
+                } else {
+                    return toBytes(FastDateFormat.getInstance(hf.format()[0]).format(value));
+                }
+            }
+            // others serial 
+        }
+
+        return toBytes(value);
     }
 
+    // for HbaseEntity
     private void setValue(Object target, String qualifier, byte[] value) {
-        if (value == null || value.length == 0) {
+        Field field;
+        if (value == null || (field = fieldMap.get(qualifier)) == null) {
+            return; // null value or not exists qualifier field name
+        }
+
+        Class<?> fieldType = field.getType();
+        HbaseField hf = field.getDeclaredAnnotation(HbaseField.class);
+        if (hf != null) {
+            if (hf.serial()) {
+                Fields.put(target, field, Serializations.deserialize(value, field.getType()));
+                return;
+            }
+            if (fieldType.isAssignableFrom(Date.class) && ArrayUtils.isNotEmpty(hf.format())) {
+                Date date; String str = Bytes.toString(value); // first to string
+                if (hf.format().length == 1
+                    && HbaseField.FORMAT_TIMESTAMP.equalsIgnoreCase(hf.format()[0])) {
+                    date = new Date(Numbers.toLong(str)); // timestamp
+                } else {
+                    try {
+                        date = DateUtils.parseDate(str, hf.format()); // date format
+                    } catch (ParseException e) {
+                        throw new RuntimeException("Invalid date format: " + str);
+                    }
+                }
+                Fields.put(target, field, date);
+                return;
+            }
+        }
+
+        if (fieldType.isAssignableFrom(ByteArrayWrapper.class)) {
+            Fields.put(target, field, ByteArrayWrapper.create(value));
+            return;
+        }
+        if (fieldType.isAssignableFrom(Date.class)) {
+            Fields.put(target, field, new Date(Bytes.toLong(value)));
+            return;
+        }
+        if (fieldType.isAssignableFrom(ByteArrayInputStream.class)) {
+            Fields.put(target, field, new ByteArrayInputStream(value));
             return;
         }
 
-        Field field = fieldMap.get(qualifier);
-        if (field == null) {
-            return; // not exists qualifier field name
+        String str = Bytes.toString(value); // first to string
+        if (field.getType().isPrimitive() && isEmpty(str)) {
+            return;
         }
-
-        HbaseField hf = field.getDeclaredAnnotation(HbaseField.class);
-        if (hf != null && hf.serial()) {
-            Fields.put(target, field, Serializations.deserialize(value, field.getType()));
-        } else if (   hf != null && ArrayUtils.isNotEmpty(hf.format()) 
-                   && Date.class.isAssignableFrom(field.getType())
-        ) {
-            Date date;
-            String str = Bytes.toString(value); // first to string
-            if (hf.format().length == 1 
-                && HbaseField.FORMAT_TIMESTAMP.equalsIgnoreCase(hf.format()[0])) {
-                date = new Date(Numbers.toLong(str)); // timestamp
-            } else {
-                try {
-                    date = DateUtils.parseDate(str, hf.format()); // date format
-                } catch (ParseException e) {
-                    throw new RuntimeException("Invalid date format: " + str);
-                }
-            }
-            Fields.put(target, field, date);
-        } else {
-            String str = Bytes.toString(value); // first to string
-            if (field.getType().isPrimitive() && isEmpty(str)) {
-                return;
-            }
-            try {
-                Fields.put(target, field, ObjectUtils.convert(str, field.getType()));
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+        try {
+            Fields.put(target, field, ObjectUtils.convert(str, field.getType()));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
-    }
-
-    private static <E extends Filter> boolean containsFilter(Class<E> type, Filter filter) {
-        if (filter == null) {
-            return false;
-        } else if (!(filter instanceof FilterList)) {
-            return type == filter.getClass();
-        } else {
-            return ((FilterList) filter).getFilters().stream()
-                                        .anyMatch(f -> type == f.getClass());
-        }
-    }
-
-    private static String buildTableName(String namespace, String tableName) {
-        return isNotBlank(namespace) 
-               ? namespace + ":" + tableName : tableName;
     }
 
     private static byte[] toBytes(String str) {
         if (str == null) {
             return null;
-        } else if (isEmpty(str)) {
-            return code.ponfee.commons.util.Bytes.EMPTY_BYTES;
+        } else if (str.isEmpty()) {
+            return EMPTY_BYTES;
         } else {
             return Bytes.toBytes(str);
         }
@@ -1038,13 +1070,32 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
+        } else if (obj instanceof Date) {
+            return Bytes.toBytes(((Date) obj).getTime());
         } else {
             String str; // first to string and then to byte array
             if (isEmpty(str = obj.toString())) {
-                return code.ponfee.commons.util.Bytes.EMPTY_BYTES;
+                return EMPTY_BYTES;
             }
             return Bytes.toBytes(str);
         }
+    }
+
+    private static <E extends Filter> boolean containsFilter(
+                              Class<E> type, Filter filter) {
+        if (filter == null) {
+            return false;
+        } else if (!(filter instanceof FilterList)) {
+            return type == filter.getClass();
+        } else {
+            return ((FilterList) filter).getFilters().stream()
+                                        .anyMatch(f -> type == f.getClass());
+        }
+    }
+
+    private static String buildTableName(String namespace, String tableName) {
+        return isNotBlank(namespace) 
+               ? namespace + ":" + tableName : tableName;
     }
 
     /**

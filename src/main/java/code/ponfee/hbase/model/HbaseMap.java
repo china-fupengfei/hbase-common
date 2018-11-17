@@ -6,9 +6,12 @@ import java.util.HashMap;
 import code.ponfee.commons.math.Numbers;
 
 /**
- * Class HbaseMap mapped by hbase table
+ * The Map class for mapped by hbase table
  * 
  * @author Ponfee
+ * @param <V> the map value type(Object), only support 
+ *            string value type(except ruwnum and rowkey)
+ * @param <R> the row key type
  */
 public abstract class HbaseMap<V, R extends Comparable<? super R> & Serializable>
     extends HashMap<String, V> implements HbaseBean<R> {

@@ -5,9 +5,10 @@ import java.io.Serializable;
 import code.ponfee.hbase.annotation.HbaseField;
 
 /**
- * Base Entity Class for hbase
+ * the Entity Class for mapped by hbase table
  * 
  * @author Ponfee
+ * @param <R> the row key type
  */
 public abstract class HbaseEntity<R extends Serializable & Comparable<? super R>>
     implements HbaseBean<R> {

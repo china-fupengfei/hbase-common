@@ -35,8 +35,8 @@ import code.ponfee.hbase.model.PageQueryBuilder;
 /**
  * The Hbase dao common base class
  * 
- * @param <T> the HbaseEntity or HbaseMap
- * @param <R> the hbase rowkey of HbaseEntity or HbaseMap
+ * @param <T> the HbaseBean(HbaseEntity or HbaseMap)
+ * @param <R> the hbase rowkey of HbaseBean(HbaseEntity or HbaseMap)
  * 
  * @author Ponfee
  */
@@ -169,8 +169,6 @@ public abstract class HbaseBatchDao<T extends HbaseBean<R>, R extends Serializab
                 query.startRowKey(), query.stopRowKey(), 
                 query.actualPageSize(), false, pageScanHook(query)
             );
-            //scan.setCaching(2000);
-            //scan.setCacheBlocks(false);
 
             rowKeys = template.find(tableName, scan, results -> {
                 List<ByteArrayWrapper> list = new LinkedList<>();

@@ -6,9 +6,10 @@ import java.io.Serializable;
 import code.ponfee.hbase.HbaseDao;
 
 /**
- * Base mapped by hbase table
+ * The base bean class for mapped by hbase table
  * 
  * @author Ponfee
+ * @param <R> the row key type
  */
 public interface HbaseBean<R extends Comparable<? super R> & Serializable>
     extends Comparable<HbaseBean<R>>, Serializable {
@@ -55,6 +56,7 @@ public interface HbaseBean<R extends Comparable<? super R> & Serializable>
     }
 
     /**
+     * Returns a string of row key,
      * Sub class can override this method
      * 
      * @return row key as string
@@ -67,9 +69,10 @@ public interface HbaseBean<R extends Comparable<? super R> & Serializable>
     }
 
     /**
+     * Returns a byte array of row key,
      * Sub class can override this method
      * 
-     * @return row key as string
+     * @return row key as byte array
      */
     @Transient
     default byte[] getRowKeyAsBytes() {
@@ -123,7 +126,7 @@ public interface HbaseBean<R extends Comparable<? super R> & Serializable>
     }
 
     default String toString0() {
-        return getClass().getName() + "@" + this.getRowKey();
+        return this.getClass().getName() + "@" + this.getRowKey();
         //return new ToStringBuilder(this).toString();
     }
 
