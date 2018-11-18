@@ -3,18 +3,14 @@ package code.ponfee.hbase.model;
 import java.io.Serializable;
 import java.util.HashMap;
 
-import code.ponfee.commons.math.Numbers;
-
 /**
  * The Map class for mapped by hbase table
  * 
  * @author Ponfee
- * @param <V> the map value type(Object), only support 
- *            string value type(except ruwnum and rowkey)
  * @param <R> the row key type
  */
-public abstract class HbaseMap<V, R extends Comparable<? super R> & Serializable>
-    extends HashMap<String, V> implements HbaseBean<R> {
+public abstract class HbaseMap<R extends Comparable<? super R> & Serializable>
+    extends HashMap<String, Object> implements HbaseBean<R> {
 
     private static final long serialVersionUID = 2482090979352032846L;
 
@@ -31,24 +27,28 @@ public abstract class HbaseMap<V, R extends Comparable<? super R> & Serializable
 
     @Override
     public final int getRowNum() {
-        V rowNum = this.get(ROW_NUM_NAME);
+        Object rowNum = this.get(ROW_NUM_NAME);
         if (rowNum == null) {
             return 0;
         } else if (rowNum instanceof Number) {
             return ((Number) rowNum).intValue();
         } else {
-            return Numbers.toInt(rowNum);
+            try {
+                return Integer.parseInt(rowNum.toString());
+            } catch (NumberFormatException e) {
+                return 0;
+            }
         }
     }
 
-    @Override @SuppressWarnings("unchecked")
+    @Override
     public final void setRowKey(R rowKey) {
-        this.put(ROW_KEY_NAME, (V) rowKey);
+        this.put(ROW_KEY_NAME, rowKey);
     }
 
-    @Override @SuppressWarnings("unchecked")
+    @Override
     public final void setRowNum(int rowNum) {
-        this.put(ROW_KEY_NAME, (V) (Integer) rowNum);
+        this.put(ROW_KEY_NAME, rowNum);
     }
 
     @Override

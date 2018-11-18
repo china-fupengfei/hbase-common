@@ -49,10 +49,10 @@ public class HbaeDaoMapTest extends BaseTest<ExtendsHbaseMapDao> {
     @Ignore
     public void batchPut() {
         int count = 200;
-        List<ExtendsHbaseMap<Object>> batch = new ArrayList<>();
+        List<ExtendsHbaseMap> batch = new ArrayList<>();
         Date date = Dates.toDate("20000101", "yyyyMMdd");
         for (int start = 3, i = start; i < count + start; i++) {
-            ExtendsHbaseMap<Object> map = new ExtendsHbaseMap<>();
+            ExtendsHbaseMap map = new ExtendsHbaseMap();
             map.put("age", 1 + ThreadLocalRandom.current().nextInt(60));
             map.put("name", RandomStringUtils.randomAlphanumeric(5));
             map.put("rowKey", Dates.format(Dates.random(date), "yyyyMMddHHmmss"));
@@ -91,7 +91,7 @@ public class HbaeDaoMapTest extends BaseTest<ExtendsHbaseMapDao> {
 
     @Test
     public void findAll() {
-        List<ExtendsHbaseMap<Object>> list = (List<ExtendsHbaseMap<Object>>) getBean().range(null, null);
+        List<ExtendsHbaseMap> list = (List<ExtendsHbaseMap>) getBean().range(null, null);
         System.out.println("======================" + list.size());
         consoleJson(list);
     }
@@ -139,16 +139,16 @@ public class HbaeDaoMapTest extends BaseTest<ExtendsHbaseMapDao> {
         PageQueryBuilder query = PageQueryBuilder.newBuilder(111);
         query.addColumns("cf1", "name");
         query.startRowKey("20181004162958");
-        List<ExtendsHbaseMap<Object>> data = new ArrayList<>();
+        List<ExtendsHbaseMap> data = new ArrayList<>();
         int count = 1;
-        List<ExtendsHbaseMap<Object>> list = (List<ExtendsHbaseMap<Object>>) getBean().previousPage(query);
+        List<ExtendsHbaseMap> list = (List<ExtendsHbaseMap>) getBean().previousPage(query);
         while (CollectionUtils.isNotEmpty(list) && list.size() == query.pageSize()) {
             count ++;
             data.addAll(list);
             consoleJson(list);
             consoleJson((String) query.previousPageStartRow(list).get(ROW_KEY_NAME));
             query.startRowKey((String) query.previousPageStartRow(list).get(ROW_KEY_NAME));
-            list = (List<ExtendsHbaseMap<Object>>) getBean().previousPage(query);
+            list = (List<ExtendsHbaseMap>) getBean().previousPage(query);
         }
         if (CollectionUtils.isNotEmpty(list)) {
             data.addAll(list);

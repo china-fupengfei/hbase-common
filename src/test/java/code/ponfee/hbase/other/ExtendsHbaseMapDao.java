@@ -5,6 +5,6 @@ import org.springframework.stereotype.Repository;
 import code.ponfee.hbase.HbaseBatchDao;
 
 @Repository("extendsHbaseMapDao")
-public class ExtendsHbaseMapDao extends HbaseBatchDao<ExtendsHbaseMap<Object>, String> {
+public class ExtendsHbaseMapDao extends HbaseBatchDao<ExtendsHbaseMap, String> {
 
 }
