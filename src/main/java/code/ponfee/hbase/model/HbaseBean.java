@@ -83,7 +83,7 @@ public interface HbaseBean<R extends Comparable<? super R> & Serializable>
     default @Override int compareTo(HbaseBean<R> other) {
         R tkey, okey;
         if ((tkey = this.getRowKey()) == null) {
-            return 1; // null last
+            return 1; // null rowkey last
         } else if (other == null
             || (okey = other.getRowKey()) == null) {
             return -1;
