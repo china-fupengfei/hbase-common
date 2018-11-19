@@ -48,7 +48,7 @@ public abstract class HbaseMap<R extends Comparable<? super R> & Serializable>
 
     @Override
     public final void setRowNum(int rowNum) {
-        this.put(ROW_KEY_NAME, rowNum);
+        this.put(ROW_NUM_NAME, rowNum);
     }
 
     @Override

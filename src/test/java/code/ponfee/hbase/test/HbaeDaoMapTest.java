@@ -40,7 +40,6 @@ public class HbaeDaoMapTest extends BaseTest<ExtendsHbaseMapDao> {
     }
 
     @Test
-    @Ignore
     public void descTable() {
         System.out.println(getBean().descTable());
     }
@@ -48,7 +47,7 @@ public class HbaeDaoMapTest extends BaseTest<ExtendsHbaseMapDao> {
     @Test
     @Ignore
     public void batchPut() {
-        int count = 200;
+        int count = 50;
         List<ExtendsHbaseMap> batch = new ArrayList<>();
         Date date = Dates.toDate("20000101", "yyyyMMdd");
         for (int start = 3, i = start; i < count + start; i++) {
