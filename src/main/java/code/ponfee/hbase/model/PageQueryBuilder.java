@@ -343,8 +343,7 @@ public class PageQueryBuilder {
                                                   byte[] value, boolean predicate) {
         return new SingleColumnValueFilter(
             toBytes(family), toBytes(qualifier), 
-            predicate ? CompareOp.EQUAL : CompareOp.NOT_EQUAL, 
-            value
+            eq(predicate), value
         );
       //new SingleColumnValueExcludeFilter(toBytes(family), toBytes(qualifier), CompareOp.EQUAL, value);
     }
@@ -373,8 +372,7 @@ public class PageQueryBuilder {
                                String wildcard, boolean predicate) {
         return new SingleColumnValueFilter(
             toBytes(family), toBytes(qualifier), 
-            predicate ? CompareOp.EQUAL : CompareOp.NOT_EQUAL, 
-            new SubstringComparator(wildcard)
+            eq(predicate), new SubstringComparator(wildcard)
         );
     }
 
@@ -382,8 +380,7 @@ public class PageQueryBuilder {
                                  byte[] prefix, boolean predicate) {
         return new SingleColumnValueFilter(
             toBytes(family), toBytes(qualifier),
-            predicate ? CompareOp.EQUAL : CompareOp.NOT_EQUAL, 
-            new BinaryPrefixComparator(prefix)
+            eq(predicate), new BinaryPrefixComparator(prefix)
         );
     }
 
@@ -391,29 +388,28 @@ public class PageQueryBuilder {
                                  String regexp, boolean predicate) {
         return new SingleColumnValueFilter(
             toBytes(family), toBytes(qualifier), 
-            predicate ? CompareOp.EQUAL : CompareOp.NOT_EQUAL, 
-            new RegexStringComparator(regexp)
+            eq(predicate), new RegexStringComparator(regexp)
         );
     }
 
     private static Filter regexpKey(String rowKeyRegexp, boolean predicate) {
-        return new RowFilter(predicate ? CompareOp.EQUAL : CompareOp.NOT_EQUAL, 
-                             new RegexStringComparator(rowKeyRegexp));
+        return new RowFilter(eq(predicate), new RegexStringComparator(rowKeyRegexp));
     }
 
     private static Filter likeKey(String keyword, boolean predicate) {
-        return new RowFilter(predicate ? CompareOp.EQUAL : CompareOp.NOT_EQUAL, 
-                             new SubstringComparator(keyword));
+        return new RowFilter(eq(predicate), new SubstringComparator(keyword));
     }
 
     private static Filter prefixKey(byte[] keyPrefix, boolean predicate) {
         //return new PrefixFilter(keyPrefix);
-        return new RowFilter(predicate ? CompareOp.EQUAL : CompareOp.NOT_EQUAL, 
-                             new BinaryPrefixComparator(keyPrefix));
+        return new RowFilter(eq(predicate), new BinaryPrefixComparator(keyPrefix));
     }
 
     private static Filter equalsKey(byte[] rowKey, boolean predicate) {
-        return new RowFilter(predicate ? CompareOp.EQUAL : CompareOp.NOT_EQUAL, 
-                             new BinaryComparator(rowKey));
+        return new RowFilter(eq(predicate), new BinaryComparator(rowKey));
+    }
+
+    private static CompareOp eq(boolean predicate) {
+        return predicate ? CompareOp.EQUAL : CompareOp.NOT_EQUAL;
     }
 }
