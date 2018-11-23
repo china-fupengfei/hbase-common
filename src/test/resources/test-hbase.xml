@@ -23,7 +23,17 @@
 
   <bean class="code.ponfee.commons.util.SpringContextHolder" />
 
-  <!-- 注解方式定时任务 -->
+  <!-- 
+    reference: http://www.springframework.org/schema/task/spring-task.xsd
+
+    The size of the executor's thread pool as either a single value or a range (e.g. 5-10). 
+    If no bounded queue-capacity value is provided, then a max value has no effect unless 
+    the range is specified as 0-n. In that case, the core pool will have a size of n, but 
+    the 'allowCoreThreadTimeout' flag will be set to true. If a queue-capacity is provided, 
+    then the lower bound of a range will map to the core size and the upper bound will map 
+    to the max size. If this attribute is not provided, the default core size will be 1, 
+    and the default max size will be Integer.MAX_VALUE (i.e. unbounded).
+   -->
   <task:executor id="taskExecutor" pool-size="1-64"
                  queue-capacity="0" keep-alive="60" 
                  rejection-policy="CALLER_RUNS" />
