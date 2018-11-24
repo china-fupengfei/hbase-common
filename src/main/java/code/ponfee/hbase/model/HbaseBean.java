@@ -109,7 +109,7 @@ public interface HbaseBean<R extends Comparable<? super R> & Serializable>
 
     @SuppressWarnings("unchecked")
     default boolean equals0(Object obj) {
-        if (!(obj instanceof HbaseBean)) {
+        if (!this.getClass().isInstance(obj)) {
             return false;
         }
 

@@ -21,7 +21,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -147,17 +146,15 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
             bean.setRowKey(deserialRowKey(result.getRow()));
             // CellUtil.cloneFamily(cell), cell.getTimestamp(), cell.getSequenceId()
             if (bean instanceof HbaseEntity) {
-                result.listCells().stream().forEach(cell -> {
-                    deserialValue(bean, Bytes.toString(cloneQualifier(cell)), 
-                                  cloneValue(cell));
-                });
+                result.listCells().forEach(cell -> deserialValue(
+                    bean, Bytes.toString(cloneQualifier(cell)), cloneValue(cell)
+                ));
             } else if (bean instanceof HbaseMap) {
                 Map<String, Object> map = (Map<String, Object>) bean;
-                result.listCells().stream().forEach(cell -> {
-                    // HbaseMap only support string value
-                    map.put(Bytes.toString(cloneQualifier(cell)), 
-                            Bytes.toString(cloneValue(cell)));
-                });
+                // HbaseMap only support string value
+                result.listCells().forEach(cell -> map.put(
+                    Bytes.toString(cloneQualifier(cell)), Bytes.toString(cloneValue(cell))
+                ));
             } else {
                 throw new UnsupportedOperationException(
                     "Unsupported type: " + this.classType.getCanonicalName()
@@ -197,7 +194,7 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
                            : LOWER_CAMEL.to(LOWER_UNDERSCORE, clazz.getSimpleName());
         this.tableName = buildTableName(ht.namespace(), tableName);
 
-        this.serialRowKey = (ht == null) ? false : ht.serialRowKey();
+        this.serialRowKey = (ht != null) && ht.serialRowKey();
 
         // global family
         this.globalFamily = (ht != null && isNotBlank(ht.family())) ? ht.family() : null;
@@ -207,7 +204,7 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
         if (isNotEmpty(this.globalFamily)) {
             builder.add(toBytes(this.globalFamily));
         }
-        this.fieldMap.values().stream().forEach(field -> {
+        this.fieldMap.values().forEach(field -> {
             HbaseField hf = field.getDeclaredAnnotation(HbaseField.class);
             if (hf != null && isNotBlank(hf.family())) {
                 builder.add(toBytes(hf.family()));
@@ -345,8 +342,8 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
             String namespace0 = isEmpty(namespace) && tableName.indexOf(':') != -1 
                                 ? substringBefore(tableName, ":") : namespace;
             if (   isNotBlank(namespace0) 
-                && !Stream.of(admin.listNamespaceDescriptors())
-                          .anyMatch(nd -> nd.getName().equals(namespace0))
+                && Stream.of(admin.listNamespaceDescriptors())
+                         .noneMatch(nd -> nd.getName().equals(namespace0))
             ) {
                 // 创建表空间
                 admin.createNamespace(NamespaceDescriptor.create(namespace0).build());
@@ -712,7 +709,7 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
                 if (obj instanceof HbaseEntity) {
                     put = new Put(rowKey);
                     HbaseEntity<R> entity = (HbaseEntity<R>) obj;
-                    this.fieldMap.values().stream().forEach(field -> {
+                    this.fieldMap.values().forEach(field -> {
                         HbaseField hf = field.getDeclaredAnnotation(HbaseField.class);
                         if (hf != null && hf.ignore()) {
                             return; // ignored field
@@ -768,7 +765,7 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
             for (String rowKey : rowKeys) {
                 Delete delete = new Delete(toBytes(rowKey));
                 if (families != null) {
-                    families.stream().forEach(family -> delete.addFamily(family));
+                    families.forEach(delete::addFamily);
                 }
                 batch.add(delete);
             }
@@ -821,9 +818,8 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
             // query column
             if (!containsFilter(FirstKeyOnlyFilter.class, filters)) {
                 if (MapUtils.isNotEmpty(query.famQuaes())) {
-                    query.famQuaes().entrySet().forEach(entry -> {
-                        byte[] family = toBytes(entry.getKey());
-                        String[] qualifies = entry.getValue();
+                    query.famQuaes().forEach((key, qualifies) -> {
+                        byte[] family = toBytes(key);
                         if (ArrayUtils.isEmpty(qualifies)) {
                             scan.addFamily(family);
                         } else {
@@ -893,7 +889,7 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
     }
 
     private void addDefinedFamilies(Scan scan) {
-        definedFamilies.stream().forEach(family -> scan.addFamily(family));
+        definedFamilies.forEach(scan::addFamily);
     }
 
     /**
@@ -942,9 +938,7 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
         if (rowKey == null) {
             return null;
         } else if (serialRowKey) {
-            return (R) Serializations.deserialize(rowKey, rowKeyType);
-        } else if (rowKeyType == byte[].class) {
-            return (R) rowKey;
+            return Serializations.deserialize(rowKey, rowKeyType);
         } else if (rowKeyType == String.class) {
             return (R) Bytes.toString(rowKey);
         } else if (rowKeyType == ByteArrayWrapper.class) {
@@ -953,17 +947,15 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
             return (R) ByteBuffer.wrap(rowKey);
         } else if (rowKeyType == Date.class) {
             return (R) new Date(Bytes.toLong(rowKey));
-        } else if (rowKeyType.isAssignableFrom(ByteArrayInputStream.class)) {
-            return (R) new ByteArrayInputStream(rowKey);
         } else if (wrappedBytesRowKey) {
             try {
-                return (R) rowKeyType.getConstructor(byte[].class).newInstance(rowKey);
+                return rowKeyType.getConstructor(byte[].class).newInstance(rowKey);
             } catch (Exception e) {
                 throw new RuntimeException("RowKeyType wrapped instance occur error", e);
             }
         } else {
             // first to string, then convert to target type
-            return (R) ObjectUtils.convert(Bytes.toString(rowKey), rowKeyType);
+            return ObjectUtils.convert(Bytes.toString(rowKey), rowKeyType);
         }
     }
 
@@ -1108,8 +1100,8 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
 
     private Put buildPut(byte[] rowKey, byte[] family, long ts, Map<String, Object> data) {
         Put put = new Put(rowKey);
-        for (Iterator<Entry<String, Object>> t = data.entrySet().iterator(); t.hasNext();) {
-            Entry<String, Object> e = t.next(); String name; Object value;
+        for (Entry<String, Object> e : data.entrySet()) {
+            String name; Object value;
             if (   isEmpty(name = e.getKey())
                 || ROW_KEY_NAME.equals(name)
                 || ROW_NUM_NAME.equals(name)
@@ -1127,7 +1119,7 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
      * Hbase scan hook
      */
     @FunctionalInterface
-    private static interface ScanHook {
+    private interface ScanHook {
         void hook(Scan scan);
     }
 

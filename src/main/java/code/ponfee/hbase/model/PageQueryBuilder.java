@@ -31,7 +31,7 @@ import code.ponfee.commons.util.ObjectUtils;
 /**
  * Page query for hbase
  * 
- * hbase filter: {@linkplain https://blog.csdn.net/cnweike/article/details/42920547}
+ * hbase filter: https://blog.csdn.net/cnweike/article/details/42920547
  * 
  * @author Ponfee
  */
