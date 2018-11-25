@@ -3,7 +3,7 @@ package code.ponfee.hbase.model;
 import java.beans.Transient;
 import java.io.Serializable;
 
-import code.ponfee.hbase.HbaseDao;
+import code.ponfee.hbase.HbaseHelper;
 
 /**
  * The base bean class for mapped by hbase table
@@ -76,7 +76,7 @@ public interface HbaseBean<R extends Comparable<? super R> & Serializable>
      */
     @Transient
     default byte[] getRowKeyAsBytes() {
-        return HbaseDao.toBytes(getRowKey());
+        return HbaseHelper.toBytes(getRowKey());
     }
 
     // -------------------------------------------Comparable & Object

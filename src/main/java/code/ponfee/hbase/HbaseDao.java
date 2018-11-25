@@ -4,6 +4,7 @@ import static code.ponfee.hbase.model.HbaseMap.ROW_KEY_NAME;
 import static code.ponfee.hbase.model.HbaseMap.ROW_NUM_NAME;
 import static com.google.common.base.CaseFormat.LOWER_CAMEL;
 import static com.google.common.base.CaseFormat.LOWER_UNDERSCORE;
+import static code.ponfee.hbase.HbaseHelper.toBytes;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.commons.lang3.StringUtils.isNotEmpty;
@@ -11,7 +12,6 @@ import static org.apache.commons.lang3.StringUtils.substringBefore;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
@@ -35,7 +35,6 @@ import javax.annotation.Resource;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.apache.commons.lang3.time.FastDateFormat;
@@ -103,7 +102,6 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
 
     //private static final DateProvider PROVIDER = DateProvider.CURRENT;
     private static final DateProvider PROVIDER = DateProvider.LATEST;
-    public static final byte[] EMPTY_BYTES = {}; // new byte[0]
 
     private final Class<T> classType;
     private final RowMapper<T> rowMapper;
@@ -318,7 +316,7 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
     }
 
     public boolean createTable(String namespace, String tableName, String[] colFamilies) {
-        List<byte[]> families = Stream.of(colFamilies).map(HbaseDao::toBytes)
+        List<byte[]> families = Stream.of(colFamilies).map(HbaseHelper::toBytes)
                                       .collect(Collectors.toList());
         return createTable(namespace, tableName, families);
     }
@@ -1040,44 +1038,6 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
             Fields.put(target, field, ObjectUtils.convert(str, field.getType()));
         } catch (Exception e) {
             throw new RuntimeException(e);
-        }
-    }
-
-    private static byte[] toBytes(String str) {
-        if (str == null) {
-            return null;
-        } else if (str.isEmpty()) {
-            return EMPTY_BYTES;
-        } else {
-            return Bytes.toBytes(str);
-        }
-    }
-
-    public static byte[] toBytes(Object obj) {
-        if (obj == null) {
-            return null;
-        } else if (obj instanceof byte[]) {
-            return (byte[]) obj;
-        } else if (obj instanceof Byte[]) {
-            return ArrayUtils.toPrimitive((Byte[]) obj);
-        } else if (obj instanceof ByteArrayWrapper) {
-            return ((ByteArrayWrapper) obj).getArray();
-        } else if (obj instanceof ByteBuffer) {
-            return ((ByteBuffer) obj).array();
-        } else if (obj instanceof InputStream) {
-            try (InputStream input = (InputStream) obj) {
-                return IOUtils.toByteArray(input);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        } else if (obj instanceof Date) {
-            return Bytes.toBytes(((Date) obj).getTime());
-        } else {
-            String str; // first to string and then to byte array
-            if (isEmpty(str = obj.toString())) {
-                return EMPTY_BYTES;
-            }
-            return Bytes.toBytes(str);
         }
     }
 
