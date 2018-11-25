@@ -941,8 +941,6 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
             return (R) Bytes.toString(rowKey);
         } else if (rowKeyType == ByteArrayWrapper.class) {
             return (R) new ByteArrayWrapper(rowKey);
-        } else if (rowKeyType == ByteBuffer.class) {
-            return (R) ByteBuffer.wrap(rowKey);
         } else if (rowKeyType == Date.class) {
             return (R) new Date(Bytes.toLong(rowKey));
         } else if (wrappedBytesRowKey) {
