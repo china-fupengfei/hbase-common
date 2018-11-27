@@ -174,7 +174,10 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
         this.wrappedBytesRowKey = flag;
 
         this.fieldMap = ImmutableBiMap.<String, Field> builder().putAll(
-            ClassUtils.listFields(this.classType).stream().collect(
+            ClassUtils.listFields(this.classType).stream().filter(f -> {
+                HbaseField hf = f.getAnnotation(HbaseField.class);
+                return hf == null || !hf.ignore();
+            }).collect(
                 Collectors.toMap(f -> {
                     HbaseField hf = f.getAnnotation(HbaseField.class);
                     return (hf == null || isEmpty(hf.qualifier()))
@@ -709,9 +712,6 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
                     HbaseEntity<R> entity = (HbaseEntity<R>) obj;
                     this.fieldMap.values().forEach(field -> {
                         HbaseField hf = field.getDeclaredAnnotation(HbaseField.class);
-                        if (hf != null && hf.ignore()) {
-                            return; // ignored field
-                        }
                         byte[] value = serialValue(entity, field, hf);
                         if (value != null) {
                             put.addColumn(getFamily(fam, hf, field), 
@@ -955,7 +955,7 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
         }
     }
 
-    // for HbaseEntity
+    // Only for HbaseEntity
     private static byte[] serialValue(Object target, Field field, HbaseField hf) {
         Object value = Fields.get(target, field);
         if (value == null) {
@@ -980,7 +980,7 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
         return toBytes(value);
     }
 
-    // for HbaseEntity
+    // Only for HbaseEntity
     private void deserialValue(Object target, String qualifier, byte[] value) {
         Field field;
         if (value == null || (field = fieldMap.get(qualifier)) == null) {

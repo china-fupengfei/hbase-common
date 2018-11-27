@@ -47,10 +47,6 @@ public abstract class HbaseBatchDao<T extends HbaseBean<R>, R extends Serializab
 
     protected @Resource ThreadPoolTaskExecutor taskExecutor;
 
-    public HbaseBatchDao() {
-        super();
-    }
-
     // ------------------------------------------------------------------------batch count
     /**
      * Counts for page, include start row
