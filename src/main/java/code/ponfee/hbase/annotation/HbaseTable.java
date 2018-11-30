@@ -8,8 +8,8 @@ import java.lang.annotation.*;
  * @author Ponfee
  */
 @Documented
-@Target(ElementType.TYPE)
 @Inherited
+@Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface HbaseTable {
 
