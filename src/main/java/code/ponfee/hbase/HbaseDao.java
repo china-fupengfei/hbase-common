@@ -854,7 +854,7 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
         // sort result
         Comparator<R> c = reversed ? Comparator.reverseOrder() : Comparator.naturalOrder();
         result.sort(Comparator.comparing(HbaseBean::getRowKey, Comparator.nullsLast(c)));
-        //result.sort(Comparator.comparing(Function.identity(), Comparator.nullsLast(Comparator.naturalOrder())));
+        //result.sort(Comparator.comparing(Function.identity(), Comparator.nullsLast(c)));
 
         if (CollectionUtils.isNotEmpty(result) && !inclusiveStartRow 
             && Arrays.equals(toBytes(startRow), result.get(0).getRowKeyAsBytes())) {

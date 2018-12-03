@@ -6,6 +6,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.Nonnull;
+
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.hadoop.hbase.filter.BinaryComparator;
@@ -92,15 +94,17 @@ public class PageQueryBuilder {
         this.requireRowNum = requireRowNum;
     }
 
-    public void addColumns(String family, String... qualifiers) {
-        Assert.notEmpty(qualifiers, "Qualifiers cannot be empty.");
+    public void addColumns(@Nonnull String family, String... quaes) {
+        Assert.notNull(family, "family cannot be empty.");
         if (famQuaes == null) {
             famQuaes = new HashMap<>();
         }
-        String[] qs = famQuaes.get(family);
-        qs = ArrayUtils.isEmpty(qs) ? qualifiers 
-             : Collects.concat(String[]::new, qs, qualifiers);
-        famQuaes.put(family, qs);
+        String[] quaes0 = famQuaes.get(family);
+        if (ArrayUtils.isEmpty(quaes0)) {
+            famQuaes.put(family, quaes);
+        } else if (ArrayUtils.isNotEmpty(quaes)) {
+            famQuaes.put(family, Collects.concat(String[]::new, quaes0, quaes));
+        }
     }
 
     // ----------------------------------------------------------------query conditions
