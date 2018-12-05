@@ -974,7 +974,8 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
                     return toBytes(FastDateFormat.getInstance(hf.format()[0]).format(value));
                 }
             }
-            // others serial 
+
+            // others conditions 
         }
 
         return toBytes(value);
@@ -1009,6 +1010,8 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
                 Fields.put(target, field, date);
                 return;
             }
+
+            // others conditions
         }
 
         if (fieldType.isAssignableFrom(ByteArrayWrapper.class)) {
