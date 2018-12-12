@@ -188,7 +188,7 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
         ).build();
 
         // table name, if not defined in annotation then 
-        // defaults lower underscore name of class name 
+        // defaults the class name lower underscore name
         HbaseTable ht = this.classType.getDeclaredAnnotation(HbaseTable.class);
         String tableName = (ht != null && isNotEmpty(ht.tableName())) 
                            ? ht.tableName()
@@ -200,7 +200,7 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
         // global family
         this.globalFamily = (ht != null && isNotBlank(ht.family())) ? ht.family() : null;
 
-        // entity Families
+        // entity families
         ImmutableList.Builder<byte[]> builder = new ImmutableList.Builder<>();
         if (isNotEmpty(this.globalFamily)) {
             builder.add(toBytes(this.globalFamily));

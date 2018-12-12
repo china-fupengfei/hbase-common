@@ -97,11 +97,9 @@ public interface HbaseBean<R extends Comparable<? super R> & Serializable>
 
     default int hashCode0() {
         R rowKey;
-        if ((rowKey = this.getRowKey()) == null) {
-            return 0;
-        } else {
-            return rowKey.hashCode();
-        }
+        return (rowKey = this.getRowKey()) == null 
+               ? 0 : rowKey.hashCode();
+
         /*return new HashCodeBuilder()
             .append(this.getRowKey())
             .toHashCode();*/
@@ -114,12 +112,10 @@ public interface HbaseBean<R extends Comparable<? super R> & Serializable>
         }
 
         R tkey, okey;
-        if ((tkey = this.getRowKey()) == null
-            || (okey = ((HbaseBean<R>) obj).getRowKey()) == null) {
-            return false;
-        } else {
-            return tkey.equals(okey);
-        }
+        return (tkey = this.getRowKey()) == null
+            || (okey = ((HbaseBean<R>) obj).getRowKey()) == null
+            ? false : tkey.equals(okey);
+
         /*return new EqualsBuilder()
                 .append(this.getRowKey(), ((HbaseMap<?, R>) obj)
                 .getRowKey()).isEquals();*/
