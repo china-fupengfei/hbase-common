@@ -193,7 +193,7 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
         String tableName = (ht != null && isNotEmpty(ht.tableName())) 
                            ? ht.tableName()
                            : LOWER_CAMEL.to(LOWER_UNDERSCORE, clazz.getSimpleName());
-        this.tableName = buildTableName(ht.namespace(), tableName);
+        this.tableName = buildTableName(ht != null ? ht.namespace() : "", tableName);
 
         this.serialRowKey = (ht != null) && ht.serialRowKey();
 
