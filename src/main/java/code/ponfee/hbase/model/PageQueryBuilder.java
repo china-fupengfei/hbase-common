@@ -311,15 +311,15 @@ public class PageQueryBuilder {
     }
 
     public PageSortOrder sortOrder() {
-        return Optional.of(sortOrder).orElse(PageSortOrder.ASC);
+        return Optional.ofNullable(sortOrder).orElse(PageSortOrder.ASC);
     }
 
     public boolean inclusiveStartRow() {
-        return Optional.of(inclusiveStartRow).orElse(ObjectUtils.isEmpty(startRowKey));
+        return Optional.ofNullable(inclusiveStartRow).orElse(ObjectUtils.isEmpty(startRowKey));
     }
 
     public Boolean inclusiveStopRow() {
-        return Optional.of(inclusiveStopRow).orElse(true);
+        return Optional.ofNullable(inclusiveStopRow).orElse(true);
     }
 
     public FilterList filters() {
