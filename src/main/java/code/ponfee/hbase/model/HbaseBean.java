@@ -84,8 +84,9 @@ public interface HbaseBean<R extends Comparable<? super R> & Serializable>
         R tkey, okey;
         if ((tkey = this.getRowKey()) == null) {
             return 1; // null rowkey last
-        } else if (other == null
-            || (okey = other.getRowKey()) == null) {
+        } else if ( ( other                      == null)
+                 || ( (okey = other.getRowKey()) == null)
+        ) {
             return -1;
         } else {
             return tkey.compareTo(okey);

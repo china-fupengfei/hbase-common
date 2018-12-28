@@ -229,11 +229,9 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
             if (Map.class.isAssignableFrom(this.classType) && Map.class.isInstance(from)) {
                 ((Map) to).putAll((Map<?, ?>) from);
             } else if (Map.class.isAssignableFrom(this.classType)) {
-                //((Map) to).putAll(ObjectUtils.bean2map(from));
-                ((Map) to).putAll(CglibUtils.bean2map(from));
+                ((Map) to).putAll(CglibUtils.bean2map(from)); // ObjectUtils.bean2map
             } else if (Map.class.isInstance(from)) {
-                //ObjectUtils.map2bean((Map) from, to);
-                CglibUtils.map2bean((Map) from, to);
+                CglibUtils.map2bean((Map) from, to); // ObjectUtils.map2bean
             } else {
                 CglibUtils.copyProperties(from, to);
             }
@@ -937,11 +935,11 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
             return null;
         } else if (serialRowKey) {
             return Serializations.deserialize(rowKey, rowKeyType);
-        } else if (rowKeyType == String.class) {
+        } else if (rowKeyType.equals(String.class)) {
             return (R) Bytes.toString(rowKey);
-        } else if (rowKeyType == ByteArrayWrapper.class) {
+        } else if (rowKeyType.equals(ByteArrayWrapper.class)) {
             return (R) new ByteArrayWrapper(rowKey);
-        } else if (rowKeyType == Date.class) {
+        } else if (rowKeyType.equals(Date.class)) {
             return (R) new Date(Bytes.toLong(rowKey));
         } else if (wrappedBytesRowKey) {
             try {
