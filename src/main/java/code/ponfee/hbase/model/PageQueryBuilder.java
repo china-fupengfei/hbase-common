@@ -5,6 +5,7 @@ import static org.apache.hadoop.hbase.util.Bytes.toBytes;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import javax.annotation.Nonnull;
 
@@ -310,15 +311,15 @@ public class PageQueryBuilder {
     }
 
     public PageSortOrder sortOrder() {
-        return ObjectUtils.orElse(sortOrder, PageSortOrder.ASC);
+        return Optional.of(sortOrder).orElse(PageSortOrder.ASC);
     }
 
     public boolean inclusiveStartRow() {
-        return ObjectUtils.orElse(inclusiveStartRow, ObjectUtils.isEmpty(startRowKey));
+        return Optional.of(inclusiveStartRow).orElse(ObjectUtils.isEmpty(startRowKey));
     }
 
     public Boolean inclusiveStopRow() {
-        return ObjectUtils.orElse(inclusiveStopRow, true);
+        return Optional.of(inclusiveStopRow).orElse(true);
     }
 
     public FilterList filters() {
