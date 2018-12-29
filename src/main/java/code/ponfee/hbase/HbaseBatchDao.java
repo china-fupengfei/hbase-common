@@ -196,7 +196,7 @@ public abstract class HbaseBatchDao<T extends HbaseBean<R>, R extends Serializab
             AtomicBoolean result = new AtomicBoolean(true);
             MultithreadExecutor.join(
                 service, round, 
-                b -> result.set(result.get() & b), 7
+                b -> result.set(result.get() & b)
             );
             return result.get();
         } catch (Exception e) {
