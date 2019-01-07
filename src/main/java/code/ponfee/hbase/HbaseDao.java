@@ -205,7 +205,7 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
         if (isNotEmpty(this.globalFamily)) {
             builder.add(toBytes(this.globalFamily));
         }
-        this.fieldMap.values().forEach(field -> {
+        this.fieldMap.forEach((name, field) -> {
             HbaseField hf = field.getDeclaredAnnotation(HbaseField.class);
             if (hf != null && isNotBlank(hf.family())) {
                 builder.add(toBytes(hf.family()));
@@ -708,7 +708,7 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
                 if (obj instanceof HbaseEntity) {
                     put = new Put(rowKey);
                     HbaseEntity<R> entity = (HbaseEntity<R>) obj;
-                    this.fieldMap.values().forEach(field -> {
+                    this.fieldMap.forEach((name, field) -> {
                         HbaseField hf = field.getDeclaredAnnotation(HbaseField.class);
                         byte[] value = serialValue(entity, field, hf);
                         if (value != null) {
