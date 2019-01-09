@@ -25,7 +25,8 @@ public @interface HbaseField {
     /** the hbase qualifier name. */
     String qualifier() default "";
 
-    /** the hbase value format, to compatible multiple date format then is array. */
+    /** the hbase value format, to compatible a field has 
+     * multiple format date value so this is array. */
     String[] format() default {};
 
     // ---------------------------------------public static final field
