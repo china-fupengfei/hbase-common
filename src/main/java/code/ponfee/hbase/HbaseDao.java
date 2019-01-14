@@ -226,10 +226,12 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
                 throw new RuntimeException(e);
             }
 
-            if (Map.class.isAssignableFrom(this.classType) && Map.class.isInstance(from)) {
-                ((Map) to).putAll((Map<?, ?>) from);
-            } else if (Map.class.isAssignableFrom(this.classType)) {
-                ((Map) to).putAll(CglibUtils.bean2map(from)); // ObjectUtils.bean2map
+            if (Map.class.isAssignableFrom(this.classType)) {
+                if (Map.class.isInstance(from)) {
+                    ((Map) to).putAll((Map<?, ?>) from);
+                } else {
+                    ((Map) to).putAll(CglibUtils.bean2map(from)); // ObjectUtils.bean2map
+                }
             } else if (Map.class.isInstance(from)) {
                 CglibUtils.map2bean((Map) from, to); // ObjectUtils.map2bean
             } else {
@@ -302,7 +304,7 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
         ) {
             return admin.tableExists(TableName.valueOf(buildTableName(namespace, tableName)));
         } catch (IOException e) {
-            logger.error("Create hbase table {}:{} occur error.", namespace, tableName, e);
+            logger.error("Checks hbase table exists {}:{} occur error.", namespace, tableName, e);
             return false;
         }
     }

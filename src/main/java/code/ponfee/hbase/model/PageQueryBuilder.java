@@ -279,8 +279,8 @@ public class PageQueryBuilder {
         return this;
     }
 
-    // ---------------------------------------------------------custome filter
-    public PageQueryBuilder customeFilter(Filter filter) {
+    // ---------------------------------------------------------custom filter
+    public PageQueryBuilder customFilter(Filter filter) {
         this.filters.addFilter(filter);
         return this;
     }
@@ -315,7 +315,8 @@ public class PageQueryBuilder {
     }
 
     public boolean inclusiveStartRow() {
-        return Optional.ofNullable(inclusiveStartRow).orElse(ObjectUtils.isEmpty(startRowKey));
+        return Optional.ofNullable(inclusiveStartRow)
+                       .orElse(ObjectUtils.isEmpty(startRowKey));
     }
 
     public Boolean inclusiveStopRow() {
