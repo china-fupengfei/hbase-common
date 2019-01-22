@@ -1,14 +1,16 @@
 package code.ponfee.hbase;
 
+import static code.ponfee.hbase.HbaseHelper.toBytes;
 import static code.ponfee.hbase.model.HbaseMap.ROW_KEY_NAME;
 import static code.ponfee.hbase.model.HbaseMap.ROW_NUM_NAME;
 import static com.google.common.base.CaseFormat.LOWER_CAMEL;
 import static com.google.common.base.CaseFormat.LOWER_UNDERSCORE;
-import static code.ponfee.hbase.HbaseHelper.toBytes;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import static org.apache.commons.lang3.StringUtils.substringBefore;
+import static org.apache.hadoop.hbase.CellUtil.cloneQualifier;
+import static org.apache.hadoop.hbase.CellUtil.cloneValue;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -25,6 +27,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -39,8 +42,6 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.apache.commons.lang3.time.FastDateFormat;
 import org.apache.hadoop.conf.Configuration;
-import static org.apache.hadoop.hbase.CellUtil.cloneValue;
-import static org.apache.hadoop.hbase.CellUtil.cloneQualifier;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.NamespaceDescriptor;
@@ -80,7 +81,7 @@ import code.ponfee.commons.reflect.CglibUtils;
 import code.ponfee.commons.reflect.ClassUtils;
 import code.ponfee.commons.reflect.Fields;
 import code.ponfee.commons.reflect.GenericUtils;
-import code.ponfee.commons.serial.Serializations;
+import code.ponfee.commons.serial.Serializer;
 import code.ponfee.commons.util.ObjectUtils;
 import code.ponfee.hbase.annotation.HbaseField;
 import code.ponfee.hbase.annotation.HbaseTable;
@@ -100,6 +101,8 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
 
     private static Logger logger = LoggerFactory.getLogger(HbaseDao.class);
 
+    private static final Map<Class<? extends Serializer>, Serializer> REGISTERED_SERIALIZER = new ConcurrentHashMap<>();
+
     //private static final DateProvider PROVIDER = DateProvider.CURRENT;
     private static final DateProvider PROVIDER = DateProvider.LATEST;
 
@@ -110,7 +113,7 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
     private final ImmutableBiMap<String, Field> fieldMap;
     private final String globalFamily; // table(class)-level family name
     private final List<byte[]> definedFamilies;
-    private final boolean serialRowKey;
+    private final Serializer rowkeySerializer;
     protected final String tableName;
 
     protected @Resource HbaseTemplate template;
@@ -195,7 +198,7 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
                            : LOWER_CAMEL.to(LOWER_UNDERSCORE, clazz.getSimpleName());
         this.tableName = buildTableName(ht != null ? ht.namespace() : "", tableName);
 
-        this.serialRowKey = (ht != null) && ht.serialRowKey();
+        this.rowkeySerializer = (ht != null) ? getSerializer(ht.serializer()) : null;
 
         // global family
         this.globalFamily = (ht != null && isNotBlank(ht.family())) ? ht.family() : null;
@@ -921,8 +924,8 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
     }
 
     private byte[] serialRowKey(R rowKey) {
-        if (serialRowKey) {
-            return Serializations.serialize(rowKey);
+        if (rowkeySerializer != null) {
+            return rowkeySerializer.serialize(rowKey);
         } else {
             //if (wrappedBytesRowKey) {
             //    // TODO wrapped byte array rowkey type need serial
@@ -935,8 +938,8 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
     private R deserialRowKey(byte[] rowKey) {
         if (rowKey == null) {
             return null;
-        } else if (serialRowKey) {
-            return Serializations.deserialize(rowKey, rowKeyType);
+        } else if (rowkeySerializer != null) {
+            return rowkeySerializer.deserialize(rowKey, rowKeyType);
         } else if (rowKeyType.equals(String.class)) {
             return (R) Bytes.toString(rowKey);
         } else if (rowKeyType.equals(ByteArrayWrapper.class)) {
@@ -962,8 +965,8 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
             return null;
         }
         if (hf != null) {
-            if (hf.serial()) {
-                return Serializations.serialize(value);
+            if (hf.serializer() != null) {
+                return getSerializer(hf.serializer()).serialize(value);
             }
             if ((value instanceof Date) && ArrayUtils.isNotEmpty(hf.format())) {
                 if (hf.format().length == 1
@@ -991,8 +994,8 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
         Class<?> fieldType = field.getType();
         HbaseField hf = field.getDeclaredAnnotation(HbaseField.class);
         if (hf != null) {
-            if (hf.serial()) {
-                Fields.put(target, field, Serializations.deserialize(value, field.getType()));
+            if (hf.serializer() != null) {
+                Fields.put(target, field, getSerializer(hf.serializer()).deserialize(value, field.getType()));
                 return;
             }
             if (fieldType.isAssignableFrom(Date.class) && ArrayUtils.isNotEmpty(hf.format())) {
@@ -1082,6 +1085,18 @@ public abstract class HbaseDao<T extends HbaseBean<R>, R extends Serializable & 
     @FunctionalInterface
     private interface ScanHook {
         void hook(Scan scan);
+    }
+
+    public static Serializer getSerializer(Class<? extends Serializer> clazz) {
+        Serializer serizlizer = REGISTERED_SERIALIZER.get(clazz);
+        if (serizlizer == null) {
+            try {
+                REGISTERED_SERIALIZER.put(clazz, serizlizer = clazz.newInstance());
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return serizlizer;
     }
 
 }

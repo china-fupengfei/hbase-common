@@ -2,6 +2,9 @@ package code.ponfee.hbase.annotation;
 
 import java.lang.annotation.*;
 
+import code.ponfee.commons.serial.GeneralSerializer;
+import code.ponfee.commons.serial.Serializer;
+
 /**
  * Mapped by hbase table name
  * 
@@ -22,6 +25,6 @@ public @interface HbaseTable {
     /** the table-level hbase family name */
     String family() default "";
 
-    /** whether serial row key */
-    boolean serialRowKey() default false;
+    /** row key serializer */
+    Class<? extends Serializer> serializer() default GeneralSerializer.class;
 }

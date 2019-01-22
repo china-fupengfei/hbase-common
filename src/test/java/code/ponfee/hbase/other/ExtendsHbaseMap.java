@@ -11,7 +11,7 @@ public class ExtendsHbaseMap extends HbaseMap<String> {
 
     @Override
     public String buildRowKey() {
-        return null;
+        return super.getRowKeyAsString();
     }
 
 }

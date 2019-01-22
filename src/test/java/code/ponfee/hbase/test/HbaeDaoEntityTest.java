@@ -157,7 +157,7 @@ public class HbaeDaoEntityTest extends BaseTest<ExtendsHbaseEntityDao>{
 
     @Test
     public void previousPageAll() {
-        PageQueryBuilder query = PageQueryBuilder.newBuilder(PAGE_SIZE);
+        PageQueryBuilder query = PageQueryBuilder.newBuilder(11, PageSortOrder.DESC);
         //query.setStartRow("fu_ponfee_20181128");
         //query.setFamQuaes(ImmutableMap.of("cf1", new String[] { "first_name" }));
         List<ExtendsHbaseEntity> data = new ArrayList<>();
@@ -173,6 +173,8 @@ public class HbaeDaoEntityTest extends BaseTest<ExtendsHbaseEntityDao>{
         }
         if (CollectionUtils.isNotEmpty(list)) {
             data.addAll(list);
+            consoleJson(list);
+            consoleJson((String) query.previousPageStartRow(list).getRowKey());
         }
         Set<String> set = new LinkedHashSet<>();
         //Set<String> set = new TreeSet<>();
@@ -262,6 +264,6 @@ public class HbaeDaoEntityTest extends BaseTest<ExtendsHbaseEntityDao>{
     }
 
     private static void printJson(Object obj) {
-        System.err.println(Jsons.NON_NULL.stringify(obj));
+        System.err.println(Jsons.NON_NULL.string(obj));
     }
 }

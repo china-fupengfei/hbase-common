@@ -1,6 +1,14 @@
 package code.ponfee.hbase.annotation;
 
-import java.lang.annotation.*;
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Inherited;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+import code.ponfee.commons.serial.Serializer;
+import code.ponfee.commons.serial.GeneralSerializer;
 
 /**
  * Entity field mapping to hbase column
@@ -16,8 +24,8 @@ public @interface HbaseField {
     /** ignore as hbase qualifier */
     boolean ignore() default false;
 
-    /** whether serial field value */
-    boolean serial() default false;
+    /** field value serializer */
+    Class<? extends Serializer> serializer() default GeneralSerializer.class;
 
     /** the column-level hbase family name. */
     String family() default "";
